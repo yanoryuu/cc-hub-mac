@@ -125,7 +125,44 @@ async function load(): Promise<void> {
   });
   await win.loadURL(`http://127.0.0.1:${port}/`);
   connectWs();
-  if (app.isPackaged) void firstRunSetup();
+  if (app.isPackaged) {
+    void firstRunSetup();
+    void restartIfOutdated();
+  }
+}
+
+/** GET / POST を JSON で(失敗は null) */
+function apiJson<T>(method: 'GET' | 'POST', p: string, body?: unknown): Promise<T | null> {
+  return new Promise((resolve) => {
+    const data = body === undefined ? undefined : JSON.stringify(body);
+    const req = http.request(
+      {
+        host: '127.0.0.1', port, path: p, method, timeout: 3000,
+        headers: { Authorization: `Bearer ${token}`, ...(data ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) } : {}) },
+      },
+      (res) => {
+        let s = '';
+        res.setEncoding('utf8');
+        res.on('data', (c) => (s += c));
+        res.on('end', () => { try { resolve(JSON.parse(s) as T); } catch { resolve(null); } });
+      },
+    );
+    req.on('error', () => resolve(null));
+    req.on('timeout', () => { req.destroy(); resolve(null); });
+    req.end(data);
+  });
+}
+
+/**
+ * アプリを更新したのに古いデーモンが動き続けている(更新の前に止まらなかった)ときは、作業が終わってから再起動してもらう。
+ * brew upgrade を CC Hub のセッションの中から実行すると、pkill は親にあたるデーモンを止めないため起きる
+ */
+async function restartIfOutdated(): Promise<void> {
+  const st = await apiJson<{ state?: { daemon?: { version?: string } }; daemon?: { version?: string } }>('GET', '/api/state');
+  const running = st?.state?.daemon?.version ?? st?.daemon?.version;
+  if (!running || running === app.getVersion()) return;
+  fs.appendFileSync(logPath, `[desktop] デーモン ${running} がアプリ ${app.getVersion()} と違うので、作業が終わったら再起動します\n`);
+  await apiJson('POST', '/api/restart', { when: 'idle', build: false });
 }
 
 // ---- インストール版 ----

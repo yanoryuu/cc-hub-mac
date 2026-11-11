@@ -15,6 +15,9 @@ VERSION=$(node -p "require('$ROOT/packages/desktop/package.json').version")
 ARCH=$(uname -m | sed s/x86_64/x64/)
 TAG="mac-v$VERSION"
 DMG="$ROOT/release/CC-Hub-$VERSION-$ARCH.dmg"
+# デーモンの版(packages/daemon/src/main.ts の VERSION)がアプリと違うと、起動のたびに「古いデーモン」とみなして再起動してしまう
+DAEMON_VERSION=$(sed -n "s/^const VERSION = '\(.*\)';/\1/p" "$ROOT/packages/daemon/src/main.ts")
+[ "$DAEMON_VERSION" = "$VERSION" ] || { echo "デーモンの VERSION($DAEMON_VERSION)をアプリ($VERSION)に合わせてください: packages/daemon/src/main.ts"; exit 1; }
 
 if [ "$SKIP_BUILD" = 0 ]; then
   (cd "$ROOT" && npm run build && npm run dist:mac -w @cc-hub/desktop)
