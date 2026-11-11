@@ -1,6 +1,7 @@
 // RepoManager: リポジトリの登録(gh repo clone)・設定変更・登録解除と、worktree でのセッション起動 / 解放(design §7)。
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import type { RebaseResult, RegisterRepoRequest, ReleaseMode, RescanResult, RepoInfo, RepoKind, SessionInfo, StartSessionRequest, WorktreeInfo, WorktreeLocker, MainViewOpen, MainViewStatus } from '@cc-hub/shared';
 import { bus } from '../bus';
 import type { HubConfig } from '../config';
@@ -15,7 +16,7 @@ import { defaultKeepDirs, detectKind } from './kind';
 import { WorktreePool, baseOf, DISK_WARN_PREFIX } from './pool';
 import { sessionsInside } from './worktree-ops';
 import { generateSlug, sanitizeSlug } from './slug';
-import { FILE_MANAGER, openFolder } from '../platform';
+import { FILE_MANAGER, cloneDir, openFolder } from '../platform';
 import { launchUnity } from '../unity/launcher';
 
 const CLONE_TIMEOUT = 60 * 60_000;
@@ -39,6 +40,19 @@ export function normalizeRepoUrl(input: string): { owner: string; name: string }
     return { owner, name };
   }
   return null;
+}
+
+/** 複製元の .git/lfs/objects を base にコピーする(無ければ何もしない。失敗してもチェックアウトでネットから取るので続ける) */
+function copyLfsObjects(source: string, base: string): void {
+  const r = spawnSync('git', ['-C', source, 'rev-parse', '--git-common-dir'], { encoding: 'utf8' });
+  if (r.status !== 0) return;
+  const common = path.resolve(source, r.stdout.trim());
+  const src = path.join(common, 'lfs', 'objects');
+  if (!fs.existsSync(src)) return;
+  const dst = path.join(base, '.git', 'lfs', 'objects');
+  fs.mkdirSync(dst, { recursive: true });
+  const ok = cloneDir(src, dst);
+  console.log(`[repo] LFS のファイルを複製元からコピー${ok ? 'しました' : 'できませんでした(ネットから取ります)'}: ${src}`);
 }
 
 export class RepoManager {
@@ -257,9 +271,11 @@ export class RepoManager {
         if (r.code !== 0) throw new Error(`フォルダからの複製に失敗しました: ${tail(r)}`);
         await gitOk(['-C', base, 'remote', 'set-url', 'origin', `https://github.com/${repo.id}.git`]);
         await gitOk(['-C', base, 'fetch', 'origin', '--prune'], { logFile, timeout: CLONE_TIMEOUT });
+        // Git LFS: 複製元にある LFS のファイルを先に持ってくる(無いとチェックアウトで全部ネットから取り直し、大きな Unity プロジェクトでは時間切れになる)
+        copyLfsObjects(localSource, base);
         // 複製元の作業中のブランチではなく、既定ブランチを origin に合わせて置く(gh repo clone と同じ状態にする)
         const cur = await git(['-C', base, 'symbolic-ref', '--short', 'HEAD']);
-        await gitOk(['-C', base, 'checkout', '-B', repo.defaultBranch, `origin/${repo.defaultBranch}`], { logFile });
+        await gitOk(['-C', base, 'checkout', '-B', repo.defaultBranch, `origin/${repo.defaultBranch}`], { logFile, timeout: CLONE_TIMEOUT });
         await gitOk(['-C', base, 'branch', `--set-upstream-to=origin/${repo.defaultBranch}`], { logFile });
         const prev = cur.code === 0 ? cur.stdout.trim() : '';
         if (prev && prev !== repo.defaultBranch) await git(['-C', base, 'branch', '-D', prev]);

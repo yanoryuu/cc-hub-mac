@@ -497,7 +497,7 @@ export class WorktreePool {
       await this.rt(repo.id).mutex.run(async () => {
         await this.fetch(repo, false, logFile);
         await this.removePath(base, w.path, logFile);
-        await gitOk(['-C', base, 'worktree', 'add', '--detach', w.path, `origin/${repo.defaultBranch}`], { logFile });
+        await gitOk(['-C', base, 'worktree', 'add', '--detach', w.path, `origin/${repo.defaultBranch}`], { logFile, timeout: 30 * 60_000 });
       });
     } catch (e) {
       this.broken(w, errMsg(e));

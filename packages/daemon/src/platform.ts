@@ -38,3 +38,56 @@ export function openFolder(dir: string): void {
 
 /** ファイルマネージャーの名前(画面に出す文) */
 export const FILE_MANAGER = IS_WIN ? 'エクスプローラー' : 'Finder';
+
+/**
+ * macOS: Finder / Dock / ログイン時に起動したアプリの PATH は短い(/usr/bin:/bin:/usr/sbin:/sbin)ので、
+ * ログインシェルの PATH を足す(gh・git-lfs・node・firebase などを見つけられるように)。子プロセスにも引き継がれる
+ */
+export function fixMacPath(env: NodeJS.ProcessEnv = process.env): void {
+  if (!IS_MAC) return;
+  const have = new Set(String(env.PATH || '').split(':').filter(Boolean));
+  const add: string[] = [];
+  const r = spawnSync(env.SHELL || '/bin/zsh', ['-lic', 'printf "%s" "$PATH"'], { encoding: 'utf8', timeout: 10_000 });
+  // .zshrc が何か出力しても、最後の行だけを PATH とみなす
+  const shellPath = r.status === 0 ? (r.stdout || '').trim().split('\n').pop() || '' : '';
+  for (const p of [...shellPath.split(':'), '/opt/homebrew/bin', '/opt/homebrew/sbin', '/usr/local/bin', `${env.HOME}/.local/bin`]) {
+    if (p && p.startsWith('/') && !have.has(p)) {
+      have.add(p);
+      add.push(p);
+    }
+  }
+  if (add.length) env.PATH = [String(env.PATH || ''), ...add].filter(Boolean).join(':');
+}
+
+/**
+ * macOS: git が GitHub のログイン情報を使えるようにする(Windows の Git Credential Manager の代わり)。
+ * gh にログインしていれば、github.com の認証を gh に任せる設定を、このデーモン(と子プロセス)の git にだけ足す。
+ * ユーザーの ~/.gitconfig は書き換えない。すでに github.com 用の helper があれば何もしない
+ */
+export function useGhForGitAuth(env: NodeJS.ProcessEnv = process.env): void {
+  if (!IS_MAC) return;
+  const cur = spawnSync('git', ['config', '--get-urlmatch', 'credential.helper', 'https://github.com'], { encoding: 'utf8', env });
+  if (/gh(\.exe)? auth git-credential|manager/.test(cur.stdout || '')) return;
+  const gh = spawnSync('/usr/bin/which', ['gh'], { encoding: 'utf8', env }).stdout?.trim();
+  if (!gh || spawnSync(gh, ['auth', 'status'], { encoding: 'utf8', env, timeout: 10_000 }).status !== 0) return;
+  // GIT_CONFIG_COUNT / KEY_n / VALUE_n: 環境変数で設定を足す(git 2.31+)。既にあれば後ろに足す
+  // github.com だけ、先に空の helper で一覧を空にしてから gh を足す。
+  // osxkeychain に古いトークンが残っていると git はそれを使って失敗し、後ろの helper を試さないため
+  const n = Number(env.GIT_CONFIG_COUNT) || 0;
+  env[`GIT_CONFIG_KEY_${n}`] = 'credential.https://github.com.helper';
+  env[`GIT_CONFIG_VALUE_${n}`] = '';
+  env[`GIT_CONFIG_KEY_${n + 1}`] = 'credential.https://github.com.helper';
+  env[`GIT_CONFIG_VALUE_${n + 1}`] = `!${gh} auth git-credential`;
+  env.GIT_CONFIG_COUNT = String(n + 2);
+}
+
+/** 大きなフォルダを複製する(macOS は APFS の clonefile でほぼ一瞬・容量も増えない。それ以外は通常のコピー) */
+export function cloneDir(src: string, dst: string): boolean {
+  if (IS_MAC) return spawnSync('/bin/cp', ['-Rc', `${src}/.`, dst], { stdio: 'ignore' }).status === 0;
+  try {
+    require('node:fs').cpSync(src, dst, { recursive: true, force: false, errorOnExist: false });
+    return true;
+  } catch {
+    return false;
+  }
+}

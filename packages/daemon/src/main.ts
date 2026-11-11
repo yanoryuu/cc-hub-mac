@@ -22,7 +22,7 @@ import { SessionDrafts } from './session/drafts';
 import { FolderProjects } from './project/folders';
 import { stopCapture } from './game/capture';
 import { secrets } from './dpapi';
-import { IS_WIN } from './platform';
+import { IS_WIN, fixMacPath, useGhForGitAuth } from './platform';
 import { NotifyService } from './notify/service';
 import { loadImages } from './notify/images';
 import { DeployService } from './deploy/service';
@@ -35,9 +35,12 @@ import { IDLE_CHECK_MS } from './session/idlestop';
 import { createRunner } from './firebase/cli';
 import { FirebaseInfoService } from './firebase/info';
 
-const VERSION = '0.2.0';
+const VERSION = '0.2.1';
 
 function main(): void {
+  // macOS: アプリから起動したときの短い PATH を補い、git の GitHub 認証を gh に任せる(子プロセスにも効く)
+  fixMacPath();
+  useGhForGitAuth();
   const { dir, config, localToken, ingestToken, mcpToken } = loadConfig();
   const store = new Store(dir);
   const auth = new Auth(store, config.pin, localToken, ingestToken);
