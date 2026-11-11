@@ -125,10 +125,7 @@ async function load(): Promise<void> {
   });
   await win.loadURL(`http://127.0.0.1:${port}/`);
   connectWs();
-  if (app.isPackaged) {
-    void firstRunSetup();
-    void restartIfOutdated();
-  }
+  if (app.isPackaged) void firstRunSetup();
 }
 
 /** GET / POST を JSON で(失敗は null) */
@@ -157,10 +154,12 @@ function apiJson<T>(method: 'GET' | 'POST', p: string, body?: unknown): Promise<
  * アプリを更新したのに古いデーモンが動き続けている(更新の前に止まらなかった)ときは、作業が終わってから再起動してもらう。
  * brew upgrade を CC Hub のセッションの中から実行すると、pkill は親にあたるデーモンを止めないため起きる
  */
+let restartRequestedFor: string | null = null;
 async function restartIfOutdated(): Promise<void> {
   const st = await apiJson<{ state?: { daemon?: { version?: string } }; daemon?: { version?: string } }>('GET', '/api/state');
   const running = st?.state?.daemon?.version ?? st?.daemon?.version;
-  if (!running || running === app.getVersion()) return;
+  if (!running || running === app.getVersion() || restartRequestedFor === running) return;
+  restartRequestedFor = running;
   fs.appendFileSync(logPath, `[desktop] デーモン ${running} がアプリ ${app.getVersion()} と違うので、作業が終わったら再起動します\n`);
   await apiJson('POST', '/api/restart', { when: 'idle', build: false });
 }
@@ -206,7 +205,9 @@ async function showMissing(missing: SetupResult['missing']): Promise<void> {
 /** デーモンが落ちていたら起こし直す(開発版は watchdog.ps1 がやるので、インストール版だけ) */
 function watchDaemon(): void {
   let restarting = false;
+  setTimeout(() => void restartIfOutdated(), 5000);
   setInterval(async () => {
+    void restartIfOutdated();
     if (quitting || restarting || (await healthy())) return;
     loadConfig();
     if (await healthy()) return;
