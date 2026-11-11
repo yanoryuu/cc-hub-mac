@@ -1,5 +1,5 @@
 // セッションの操作面: ターミナル + 指示の入力欄(Composer)+ クイックキー(畳める)
-// 外部 / PowerShell に移したセッションは、説明と「引き継ぐ」ボタン + 引き継いで送る入力欄
+// 外部 / ターミナルに移したセッションは、説明と「引き継ぐ」ボタン + 引き継いで送る入力欄
 import { useEffect, useRef, useState } from 'react';
 import type { SessionInfo } from '@cc-hub/shared';
 import { TerminalView, type TerminalHandle } from './TerminalView';

@@ -207,7 +207,19 @@ function createWindow(): void {
   const b = readJson<{ x?: number; y?: number; width?: number; height?: number; max?: boolean }>(boundsPath, {});
   win = new BrowserWindow({
     width: b.width ?? 1280, height: b.height ?? 800, x: b.x, y: b.y,
-    show: false, title: 'CC Hub', backgroundColor: '#1e1e1e', autoHideMenuBar: true,
+    show: false, title: 'CC Hub', autoHideMenuBar: true,
+    // macOS: タイトルバーを画面に重ね(信号機だけ残す)、サイドバーとタイトルバーをウィンドウの vibrancy で透かす
+    ...(IS_MAC
+      ? {
+          titleBarStyle: 'hiddenInset' as const,
+          trafficLightPosition: { x: 16, y: 15 },
+          vibrancy: 'sidebar' as const,
+          visualEffectState: 'followWindow' as const,
+          backgroundColor: '#00000000',
+          minWidth: 980,
+          minHeight: 600,
+        }
+      : { backgroundColor: '#1e1e1e' }),
     icon: path.join(__dirname, '..', 'assets', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),

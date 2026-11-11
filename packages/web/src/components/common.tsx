@@ -23,7 +23,7 @@ export function StatusBadge({ status }: { status: SessionStatus }) {
   );
 }
 
-/** 小さなバッジ(読み取り専用 / PowerShell で実行中 など) */
+/** 小さなバッジ(読み取り専用 / ターミナルで実行中 など) */
 export function Tag({ tone = '', children, title }: { tone?: string; children: React.ReactNode; title?: string }) {
   return (
     <span className={`tag ${tone}`} title={title}>
@@ -37,8 +37,8 @@ export function WhereTag({ session }: { session: Pick<SessionInfo, 'managed' | '
   if (session.managed) return null;
   if (session.handedOff)
     return (
-      <Tag tone="ps" title="PowerShell のウィンドウで実行中。「CC Hub に戻す」でここに戻せます">
-        PowerShell で実行中
+      <Tag tone="ps" title="ターミナルのウィンドウで実行中。「CC Hub に戻す」でここに戻せます">
+        ターミナルで実行中
       </Tag>
     );
   return (

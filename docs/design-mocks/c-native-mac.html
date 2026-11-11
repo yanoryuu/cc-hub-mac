@@ -1,0 +1,1005 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CC Hub — Direction C: Native macOS</title>
+<style>
+/* =========================================================
+   CC Hub / Direction C "Native macOS"
+   既存 packages/web の変数名にマッピングしたトークン。
+   値は AppKit のセマンティックカラーを基準に、WCAG AA を満たすよう一部を調整。
+   ========================================================= */
+:root {
+  /* --- surfaces --- */
+  --window: #ffffff;                       /* windowBackgroundColor (content) */
+  --bg: #ffffff;                           /* textBackgroundColor: 会話ペイン */
+  --panel: #f5f5f7;                        /* インスペクタ(windowBackground 相当) */
+  --panel-2: #ececf0;                      /* quaternarySystemFill 相当: ツールブロック・ユーザー発言 */
+  --panel-3: #e3e3e8;
+  --sidebar-glass: rgba(236, 236, 241, 0.62); /* NSVisualEffectView .sidebar の近似 */
+  --sidebar-tint: rgba(255, 255, 255, 0.35);
+  --toolbar: rgba(255, 255, 255, 0.92);
+  --sheet: #ffffff;
+  --scrim: rgba(0, 0, 0, 0.07);
+  --term-bg: #f7f7f9;
+  --control: #ffffff;                      /* controlBackgroundColor */
+  --control-glass: rgba(255, 255, 255, 0.75);
+  --hover: rgba(0, 0, 0, 0.05);
+  --selection-inactive: rgba(0, 0, 0, 0.09); /* unemphasizedSelectedContentBackgroundColor */
+
+  /* --- lines --- */
+  --border: rgba(0, 0, 0, 0.10);           /* separatorColor */
+  --border-2: rgba(0, 0, 0, 0.16);
+  --border-input: rgba(0, 0, 0, 0.22);
+
+  /* --- text (labelColor 系) --- */
+  --fg: #1d1d1f;                           /* labelColor */
+  --fg-2: #3a3a3f;                         /* secondaryLabelColor を AA 側へ寄せた値 */
+  --muted: #636368;                        /* tertiary 相当。白で 5.9:1 / サイドバー上で 5.0:1 以上 */
+  --dim: #8e8e93;                          /* 装飾のみ(テキスト不可) */
+
+  /* --- accent (System Accent Color) --- */
+  --accent: #007aff;                       /* controlAccentColor: アイコン・フォーカスリング・選択 */
+  --accent-text: #0062cc;                  /* linkColor 相当: 文字に使う時はこちら (5.9:1) */
+  --accent-bg: rgba(0, 122, 255, 0.10);
+  --primary: #0071e3;                      /* デフォルトボタン塗り(白文字 4.6:1) */
+  --primary-hover: #0068d1;
+  --on-primary: #ffffff;
+
+  /* --- status: glyph 用(図形)と text 用(文字)を分ける --- */
+  --st-running: #007aff;
+  --st-approval: #ff9500;                  /* systemOrange: 塗り専用、上の図形/文字は --on-approval */
+  --st-approval-fg: #b14b00;               /* 文字用オレンジ (5.0:1) */
+  --st-approval-bg: rgba(255, 149, 0, 0.14);
+  --on-approval: #2b1700;
+  --st-input: #248a3d;                     /* accessible systemGreen (図形用) */
+  --st-input-fg: #1a6b2e;                  /* 文字用グリーン */
+  --st-idle: #8e8e93;
+  --st-error: #e0291e;
+  --st-error-fg: #c4141a;
+  --st-stopped: #8e8e93;
+  --ok: #248a3d;
+  --add: #1f7a35;
+  --del: #c4141a;
+
+  /* --- shape & type --- */
+  --radius: 6px;                           /* 小コントロール */
+  --radius-md: 10px;                       /* ブロック・入力欄 */
+  --radius-lg: 16px;                       /* シート・ウインドウ */
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Hiragino Sans", "Hiragino Kaku Gothic ProN", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, "Hiragino Sans", monospace;
+  --fs-body: 13px;
+  --fs-small: 11px;
+  --fs-title: 13px;
+  --fs-heading: 15px;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px;
+
+  --wall: radial-gradient(120% 90% at 10% 0%, #8ec5ff 0%, transparent 55%),
+          radial-gradient(90% 80% at 100% 20%, #c9b8ff 0%, transparent 60%),
+          radial-gradient(110% 90% at 60% 110%, #5aa0f2 0%, transparent 60%),
+          linear-gradient(160deg, #d6e9ff, #7fb2ee 60%, #4f7fd6);
+  --window-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.22), 0 24px 70px rgba(10, 30, 70, 0.35), 0 4px 14px rgba(10, 30, 70, 0.18);
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --window: #1e1e1f;
+  --bg: #1e1e1f;
+  --panel: #232325;
+  --panel-2: #2c2c2f;
+  --panel-3: #38383c;
+  --sidebar-glass: rgba(34, 34, 40, 0.58);
+  --sidebar-tint: rgba(255, 255, 255, 0.03);
+  --toolbar: rgba(30, 30, 31, 0.92);
+  --sheet: #2a2a2d;
+  --scrim: rgba(0, 0, 0, 0.22);
+  --term-bg: #19191a;
+  --control: #2f2f33;
+  --control-glass: rgba(255, 255, 255, 0.08);
+  --hover: rgba(255, 255, 255, 0.06);
+  --selection-inactive: rgba(255, 255, 255, 0.10);
+
+  --border: rgba(255, 255, 255, 0.10);
+  --border-2: rgba(255, 255, 255, 0.16);
+  --border-input: rgba(255, 255, 255, 0.22);
+
+  --fg: #f2f2f5;
+  --fg-2: #d4d4d9;
+  --muted: #a3a3a9;
+  --dim: #6e6e73;
+
+  --accent: #0a84ff;
+  --accent-text: #4da3ff;
+  --accent-bg: rgba(10, 132, 255, 0.18);
+  --primary: #0071e3;
+  --primary-hover: #0a7cf0;
+
+  --st-running: #0a84ff;
+  --st-approval: #ff9f0a;
+  --st-approval-fg: #ffb340;
+  --st-approval-bg: rgba(255, 159, 10, 0.16);
+  --on-approval: #2b1700;
+  --st-input: #30d158;
+  --st-input-fg: #30d158;
+  --st-idle: #98989d;
+  --st-error: #ff453a;
+  --st-error-fg: #ff6961;
+  --st-stopped: #98989d;
+  --ok: #30d158;
+  --add: #4cd471;
+  --del: #ff6961;
+
+  --wall: radial-gradient(120% 90% at 10% 0%, #22406f 0%, transparent 55%),
+          radial-gradient(90% 80% at 100% 20%, #3b2a66 0%, transparent 60%),
+          radial-gradient(110% 90% at 60% 110%, #0f3a7a 0%, transparent 60%),
+          linear-gradient(160deg, #101a2e, #0c1730 60%, #070c18);
+  --window-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.14), 0 0 0 1px rgba(0, 0, 0, 0.6), 0 24px 70px rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { min-height: 100%; }
+body {
+  font: var(--fs-body)/1.45 var(--sans);
+  color: var(--fg);
+  background: var(--wall);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: 0;
+}
+button { font: inherit; color: inherit; background: none; border: 0; cursor: default; }
+:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 1px; border-radius: var(--radius); }
+.mono { font-family: var(--mono); }
+svg.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------- fake menu bar ---------- */
+.menubar {
+  height: 26px; display: flex; align-items: center; gap: 18px; padding: 0 16px;
+  font-size: 13px; color: #fff; text-shadow: 0 0 6px rgba(0,0,0,.25);
+  background: rgba(20, 40, 80, 0.14);
+  backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6);
+}
+.menubar b { font-weight: 700; }
+.menubar .right { margin-left: auto; display: flex; gap: 14px; align-items: center; }
+.appearance {
+  display: inline-flex; padding: 2px; border-radius: 99px;
+  background: rgba(255,255,255,.22); gap: 2px; text-shadow: none;
+}
+.appearance button { padding: 1px 10px; border-radius: 99px; color: #fff; font-size: 12px; }
+.appearance button[aria-pressed="true"] { background: rgba(255,255,255,.9); color: #1d1d1f; }
+
+/* ---------- window ---------- */
+.stage { padding: 28px 32px 40px; }
+.window {
+  position: relative;
+  width: min(1376px, 100%); height: 820px; margin: 0 auto;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--window-shadow);
+  display: grid;
+  grid-template-columns: 252px minmax(0, 1fr) 284px;
+  grid-template-rows: 52px minmax(0, 1fr);
+  isolation: isolate;
+}
+
+/* ---------- sidebar (source list, behind-window vibrancy) ---------- */
+.sidebar {
+  grid-row: 1 / 3; grid-column: 1;
+  display: flex; flex-direction: column; min-height: 0;
+  background: linear-gradient(var(--sidebar-tint), var(--sidebar-tint)), var(--sidebar-glass);
+  backdrop-filter: blur(40px) saturate(1.8); -webkit-backdrop-filter: blur(40px) saturate(1.8);
+  border-right: 0.5px solid var(--border-2);
+}
+.sb-top { height: 52px; flex: none; display: flex; align-items: center; padding: 0 10px 0 18px; }
+.traffic { display: flex; gap: 8px; }
+.traffic span { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 0.5px rgba(0,0,0,.18); }
+.traffic span:nth-child(1) { background: #ff5f57; }
+.traffic span:nth-child(2) { background: #febc2e; }
+.traffic span:nth-child(3) { background: #28c840; }
+.sb-top .tb-btn { margin-left: auto; }
+
+.sb-scroll { flex: 1; overflow: auto; padding: 2px 10px 10px; }
+.sb-section + .sb-section { margin-top: 14px; }
+.sb-heading {
+  display: flex; align-items: center; height: 24px; padding: 0 6px 0 8px;
+  font-size: var(--fs-small); font-weight: 700; color: var(--muted);
+}
+.sb-heading .add {
+  margin-left: auto; width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; color: var(--fg-2);
+}
+.sb-heading .add:hover { background: var(--hover); }
+
+.nav-item {
+  text-decoration: none;
+  display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 8px; border-radius: 7px;
+  color: var(--fg);
+}
+.nav-item svg.i { color: var(--accent); }
+.nav-item:hover { background: var(--hover); }
+.nav-item .count { margin-left: auto; font-size: var(--fs-small); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* repo group (outline view with disclosure triangle) */
+.group-row {
+  display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px 0 2px; border-radius: 7px;
+}
+.group-row:hover { background: var(--hover); }
+.disclosure { width: 14px; height: 14px; display: grid; place-items: center; color: var(--muted); transition: transform .15s ease; }
+.disclosure svg { width: 10px; height: 10px; stroke-width: 2; }
+.group[aria-expanded="true"] .disclosure { transform: rotate(90deg); }
+.group-row .folder { color: var(--accent); }
+.group-row .name { font-weight: 600; }
+.group-row .count { margin-left: auto; font-size: var(--fs-small); color: var(--muted); font-variant-numeric: tabular-nums; }
+.group-list { display: none; }
+.group[aria-expanded="true"] .group-list { display: block; }
+
+.sess {
+  display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; column-gap: 8px; align-items: center;
+  padding: 5px 8px 5px 24px; border-radius: 7px; margin: 1px 0;
+}
+.sess:hover { background: var(--hover); }
+.sess .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sess .b { grid-column: 2; font: var(--fs-small)/1.35 var(--mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sess .st { grid-row: 1 / 3; align-self: center; }
+.sess .trail { grid-column: 3; grid-row: 1 / 3; font-size: var(--fs-small); color: var(--muted); }
+.sess[aria-current="true"] { background: var(--selection-inactive); }
+/* 承認待ちの行: 行そのものを薄く染め、末尾にカプセル。選択中でも残る */
+.sess.is-approval { background: var(--st-approval-bg); box-shadow: inset 2.5px 0 0 var(--st-approval); }
+.sess.is-approval[aria-current="true"] { background: linear-gradient(var(--selection-inactive), var(--selection-inactive)), var(--st-approval-bg); }
+.trail.input { color: var(--st-input-fg); font-weight: 600; }
+.trail.error { color: var(--st-error-fg); font-weight: 600; }
+
+.capsule {
+  display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 7px; border-radius: 99px;
+  font-size: var(--fs-small); font-weight: 600; line-height: 1; white-space: nowrap;
+}
+.capsule.approval { background: var(--st-approval); color: var(--on-approval); }
+.capsule.count-approval { min-width: 18px; justify-content: center; padding: 0 5px; background: var(--st-approval); color: var(--on-approval); }
+.capsule.neutral { background: var(--panel-3); color: var(--fg-2); }
+.capsule.ok { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--add); }
+
+.sb-foot {
+  flex: none; display: flex; align-items: center; gap: 8px; padding: 8px 10px 10px;
+  border-top: 0.5px solid var(--border);
+}
+.sb-foot .nav-item { flex: 1; }
+.sb-foot .host { font-size: var(--fs-small); color: var(--muted); display: flex; align-items: center; gap: 5px; padding-right: 6px; }
+.sb-foot .host::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--st-input); }
+
+/* ---------- status glyphs ---------- */
+.st { width: 16px; height: 16px; flex: none; display: block; }
+.st-running { color: var(--st-running); }
+.st-running .arc { transform-origin: 8px 8px; animation: spin 1.1s linear infinite; }
+.st-approval { color: var(--st-approval); }
+.st-input { color: var(--st-input); }
+.st-idle { color: var(--st-idle); }
+.st-error { color: var(--st-error); }
+.st-stopped { color: var(--st-stopped); }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .st-running .arc { animation: none; } .sheet { animation: none !important; } }
+
+/* ---------- unified toolbar ---------- */
+.toolbar {
+  grid-row: 1; grid-column: 2 / 4;
+  display: flex; align-items: center; gap: 10px; padding: 0 10px 0 16px;
+  background: var(--toolbar);
+  border-bottom: 0.5px solid var(--border);
+  min-width: 0;
+}
+.tb-title { min-width: 0; flex: 0 1 auto; max-width: 240px; }
+.tb-title h1 { font-size: var(--fs-title); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tb-title p { font-size: var(--fs-small); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tb-btn {
+  height: 28px; min-width: 28px; padding: 0 6px; border-radius: 99px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: var(--fg-2);
+}
+.tb-btn:hover { background: var(--hover); }
+.tb-btn.label { padding: 0 11px 0 9px; }
+.tb-group {
+  display: inline-flex; align-items: center; height: 32px; padding: 2px; border-radius: 99px;
+  background: var(--control-glass);
+  box-shadow: 0 0 0 0.5px var(--border-2), 0 1px 3px rgba(0,0,0,.06);
+}
+.tb-group .tb-btn { height: 28px; }
+.tb-group .divider { width: 0.5px; height: 16px; background: var(--border-2); margin: 0 1px; }
+
+/* Xcode 風アクティビティビューア */
+.activity {
+  flex: 1 1 420px; max-width: 520px; min-width: 0; margin: 0 auto;
+  height: 32px; border-radius: 99px; padding: 0 6px 0 10px;
+  display: flex; align-items: center; gap: 8px;
+  background: var(--panel); box-shadow: inset 0 0 0 0.5px var(--border-2);
+  position: relative; overflow: hidden;
+}
+.activity .now { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1; }
+.activity .now b { color: var(--st-approval-fg); font-weight: 600; white-space: nowrap; }
+.activity .now code { font: var(--fs-small)/1 var(--mono); color: var(--fg-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.activity .usage {
+  display: flex; align-items: center; gap: 6px; flex: none; height: 22px; padding: 0 8px; border-radius: 99px;
+  font-size: var(--fs-small); color: var(--fg-2); font-variant-numeric: tabular-nums; background: var(--bg);
+  box-shadow: 0 0 0 0.5px var(--border);
+}
+.activity .usage .sep { color: var(--dim); }
+.meter { width: 22px; height: 4px; border-radius: 2px; background: var(--panel-3); overflow: hidden; display: inline-block; }
+.meter i { display: block; height: 100%; border-radius: 2px; background: var(--fg-2); }
+.meter.ctx i { background: var(--accent); }
+.activity .progress { position: absolute; left: 14px; right: 14px; bottom: 0; height: 2px; border-radius: 2px; background: var(--st-approval); opacity: .9; }
+
+.queue-btn {
+  height: 28px; padding: 0 10px 0 7px; border-radius: 99px; display: inline-flex; align-items: center; gap: 6px;
+  background: var(--st-approval-bg); color: var(--st-approval-fg); font-weight: 600; white-space: nowrap;
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--st-approval) 55%, transparent);
+}
+.queue-btn .capsule { height: 16px; }
+
+/* ---------- main column ---------- */
+.main { grid-row: 2; grid-column: 2; display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--bg); position: relative; }
+.jumpbar {
+  flex: none; height: 28px; display: flex; align-items: center; gap: 6px; padding: 0 14px;
+  border-bottom: 0.5px solid var(--border); font-size: var(--fs-small); color: var(--fg-2); min-width: 0;
+}
+.jumpbar .seg { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.jumpbar .seg svg.i { width: 13px; height: 13px; color: var(--accent); }
+.jumpbar .chev { color: var(--dim); }
+.jumpbar .path { font-family: var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.jumpbar .right { margin-left: auto; color: var(--muted); white-space: nowrap; padding-left: 12px; }
+
+.convo-wrap { flex: 1; min-height: 0; position: relative; display: flex; }
+.convo { flex: 1; overflow: auto; }
+.convo-inner { max-width: 720px; margin: 0 auto; padding: 24px 28px 28px; display: flex; flex-direction: column; gap: 18px; }
+.day { align-self: center; font-size: var(--fs-small); color: var(--muted); }
+.msg-user {
+  align-self: flex-end; max-width: 78%;
+  background: var(--panel-2); border-radius: 14px; padding: 8px 12px; line-height: 1.55;
+}
+.msg-meta { display: flex; align-items: center; gap: 6px; font-size: var(--fs-small); color: var(--muted); margin-bottom: 4px; }
+.msg-meta .who { font-weight: 700; color: var(--fg-2); }
+.msg-meta .spark { width: 14px; height: 14px; color: #c96442; }
+.msg-ai { line-height: 1.6; color: var(--fg); }
+.msg-ai p + p, .msg-ai p + ul, .msg-ai ul + p, .msg-ai pre + p { margin-top: 8px; }
+.msg-ai ul { padding-left: 1.3em; margin-top: 6px; }
+.msg-ai li + li { margin-top: 2px; }
+.msg-ai code { font: 12px var(--mono); background: var(--panel-2); padding: 1px 5px; border-radius: 4px; }
+.msg-ai pre {
+  margin-top: 8px; background: var(--term-bg); border: 0.5px solid var(--border-2); border-radius: var(--radius-md);
+  padding: 10px 12px; font: 12px/1.6 var(--mono); overflow: auto; color: var(--fg-2);
+}
+.msg-ai pre .k { color: #ad3da4; } .msg-ai pre .s { color: #c41a16; } .msg-ai pre .n { color: #1c00cf; }
+[data-theme="dark"] .msg-ai pre .k { color: #ff7ab2; }
+[data-theme="dark"] .msg-ai pre .s { color: #ff8170; }
+[data-theme="dark"] .msg-ai pre .n { color: #d9c97c; }
+
+.tool {
+  border: 0.5px solid var(--border-2); border-radius: var(--radius-md); overflow: hidden; background: var(--bg);
+}
+.tool-head {
+  display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; width: 100%; text-align: left;
+  background: var(--panel);
+}
+.tool-head .disclosure { color: var(--muted); }
+.tool[aria-expanded="true"] .tool-head .disclosure { transform: rotate(90deg); }
+.tool-head svg.i { color: var(--fg-2); width: 15px; height: 15px; }
+.tool-head .name { font-weight: 600; }
+.tool-head code { font: 12px var(--mono); color: var(--fg-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.tool-head .res { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-small); color: var(--muted); white-space: nowrap; }
+.tool-head .res .okc { color: var(--ok); }
+.tool-head .diff { font: var(--fs-small) var(--mono); }
+.add { color: var(--add); } .del { color: var(--del); }
+.term {
+  font: 11.5px/1.65 var(--mono); padding: 8px 12px 10px 34px; background: var(--term-bg); color: var(--fg-2);
+  border-top: 0.5px solid var(--border); white-space: pre; overflow: auto;
+}
+.term .pass { color: var(--ok); } .term .dim { color: var(--muted); }
+
+/* ---------- approval sheet (pane-modal) ---------- */
+.scrim { position: absolute; inset: 0; background: var(--scrim); pointer-events: none; }
+.sheet {
+  position: absolute; top: 38px; left: 50%; transform: translateX(-50%);
+  width: min(500px, calc(100% - 32px));
+  background: var(--sheet); border-radius: var(--radius-lg);
+  box-shadow: 0 0 0 0.5px var(--border-2), 0 18px 50px rgba(0,0,0,.22), 0 2px 8px rgba(0,0,0,.08);
+  padding: 18px 18px 16px; z-index: 5;
+  animation: drop .32s cubic-bezier(.2,.9,.25,1) both;
+}
+@keyframes drop { from { transform: translate(-50%, -14px); opacity: 0; } }
+.sheet-top { display: flex; gap: 14px; }
+.sheet-icon {
+  width: 40px; height: 40px; flex: none; border-radius: 10px; display: grid; place-items: center;
+  background: var(--st-approval); color: var(--on-approval);
+  box-shadow: inset 0 0 0 0.5px rgba(0,0,0,.12);
+}
+.sheet-icon svg { width: 24px; height: 24px; }
+.sheet h2 { font-size: var(--fs-title); font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.sheet h2 .pos { margin-left: auto; font-size: var(--fs-small); font-weight: 400; color: var(--muted); display: inline-flex; align-items: center; gap: 2px; }
+.sheet h2 .pos button { width: 18px; height: 18px; border-radius: 4px; display: inline-grid; place-items: center; color: var(--fg-2); }
+.sheet h2 .pos button:hover { background: var(--hover); }
+.sheet .lead { color: var(--fg-2); margin-top: 2px; }
+.cmd {
+  margin-top: 10px; padding: 9px 11px; border-radius: 8px; background: var(--term-bg);
+  box-shadow: inset 0 0 0 0.5px var(--border-2);
+  font: 12.5px/1.4 var(--mono); color: var(--fg); overflow-wrap: anywhere;
+}
+.cmd .tool-n { color: var(--st-approval-fg); font-weight: 600; }
+.sheet .facts { margin-top: 8px; font-size: var(--fs-small); color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.sheet .facts span { display: inline-flex; align-items: center; gap: 4px; }
+.sheet-actions { display: flex; align-items: center; gap: 8px; margin-top: 16px; padding-left: 54px; }
+.btn {
+  height: 28px; padding: 0 14px; border-radius: 99px; font-weight: 500; white-space: nowrap;
+  background: var(--control); box-shadow: 0 0 0 0.5px var(--border-input), 0 1px 1.5px rgba(0,0,0,.08); color: var(--fg);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn:hover { background: color-mix(in srgb, var(--control) 92%, var(--fg)); }
+.btn.default { background: var(--primary); color: var(--on-primary); box-shadow: 0 1px 2px rgba(0,60,140,.3); }
+.btn.default:hover { background: var(--primary-hover); }
+.btn kbd { font: 11px var(--sans); opacity: .8; }
+.btn.deny { color: var(--st-error-fg); }
+.sheet-actions .spacer { flex: 1; }
+.sheet .hint { margin-top: 10px; padding-left: 54px; font-size: var(--fs-small); color: var(--muted); }
+
+/* ---------- composer ---------- */
+.composer { flex: none; padding: 10px 20px 16px; }
+.field {
+  max-width: 720px; margin: 0 auto; border-radius: 14px; background: var(--control);
+  box-shadow: 0 0 0 0.5px var(--border-input), 0 2px 10px rgba(0,0,0,.05);
+  padding: 10px 10px 8px 14px;
+}
+.field:focus-within { box-shadow: 0 0 0 0.5px var(--accent), 0 0 0 3.5px color-mix(in srgb, var(--accent) 35%, transparent); }
+.field textarea {
+  width: 100%; border: 0; outline: 0; resize: none; background: transparent; color: var(--fg);
+  font: var(--fs-body)/1.5 var(--sans); min-height: 40px;
+}
+.field textarea::placeholder { color: var(--muted); }
+.field-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.popup {
+  height: 24px; padding: 0 6px 0 9px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; color: var(--fg-2); background: var(--panel-2);
+}
+.popup svg.i { width: 11px; height: 11px; stroke-width: 1.8; }
+.field-row .hint { margin-left: auto; font-size: var(--fs-small); color: var(--muted); margin-right: 4px; }
+.send {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--panel-3); color: var(--muted);
+}
+.send svg.i { stroke-width: 2; }
+
+/* ---------- inspector ---------- */
+.inspector { grid-row: 2; grid-column: 3; background: var(--panel); border-left: 0.5px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
+.seg-ctl {
+  margin: 10px 12px 6px; display: grid; grid-template-columns: repeat(3, 1fr); padding: 2px; border-radius: 8px;
+  background: var(--panel-3);
+}
+.seg-ctl button { height: 24px; border-radius: 6px; font-size: 12px; color: var(--fg-2); }
+.seg-ctl button[aria-selected="true"] { background: var(--control); color: var(--fg); font-weight: 600; box-shadow: 0 0 0 0.5px var(--border-2), 0 1px 2px rgba(0,0,0,.1); }
+.ins-body { flex: 1; overflow: auto; padding: 4px 0 16px; }
+.ins-pane[hidden] { display: none; }
+.ins-sec { padding: 8px 14px 10px; }
+.ins-sec + .ins-sec { border-top: 0.5px solid var(--border); }
+.ins-sec h3 { font-size: var(--fs-small); font-weight: 700; color: var(--fg-2); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.ins-sec h3 .r { margin-left: auto; font-weight: 400; color: var(--muted); }
+.kv { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 6px 10px; font-size: 12px; align-items: baseline; }
+.kv dt { color: var(--muted); text-align: right; font-size: var(--fs-small); white-space: nowrap; }
+.kv dd { min-width: 0; overflow-wrap: anywhere; }
+.kv dd.mono { font-size: 11.5px; word-break: break-all; }
+.files { list-style: none; }
+.files li { display: grid; grid-template-columns: 16px minmax(0,1fr) auto; gap: 8px; align-items: center; padding: 4px 6px; margin: 0 -6px; border-radius: 6px; font-size: 12px; }
+.files li:hover { background: var(--hover); }
+.files .badge { width: 16px; height: 16px; border-radius: 4px; font: 700 10px/16px var(--sans); text-align: center; color: #fff; }
+.files .badge.m { background: #5e5ce6; }
+.files .badge.a { background: #248a3d; }
+.files .fn { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.files .fn small { color: var(--muted); font-size: var(--fs-small); margin-left: 4px; }
+.files .nums { font: var(--fs-small) var(--mono); white-space: nowrap; }
+.ins-actions { display: flex; gap: 8px; margin-top: 10px; }
+.ins-actions .btn { height: 24px; padding: 0 11px; font-size: 12px; }
+.checks { list-style: none; }
+.checks li { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 12px; }
+.checks li .t { color: var(--muted); margin-left: auto; font-size: var(--fs-small); font-variant-numeric: tabular-nums; }
+.pr-title { font-weight: 600; line-height: 1.4; }
+.pr-title .num { color: var(--muted); font-weight: 400; }
+.gauge { display: flex; align-items: center; gap: 8px; }
+.gauge .bar { flex: 1; height: 6px; border-radius: 3px; background: var(--panel-3); overflow: hidden; }
+.gauge .bar i { display: block; height: 100%; border-radius: 3px; background: var(--accent); }
+.gauge .bar.usage i { background: var(--fg-2); }
+.gauge span { font-size: var(--fs-small); color: var(--fg-2); font-variant-numeric: tabular-nums; width: 30px; text-align: right; }
+.link { color: var(--accent-text); }
+
+/* ---------- design memo ---------- */
+.memo {
+  width: min(1376px, 100%); margin: 36px auto 0; border-radius: var(--radius-lg);
+  background: var(--window); color: var(--fg); box-shadow: var(--window-shadow);
+  padding: 28px 36px 32px;
+}
+.memo h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+.memo .sub { color: var(--muted); margin-top: 2px; }
+.memo-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 32px; margin-top: 20px; }
+.memo ul { padding-left: 1.2em; line-height: 1.7; }
+.memo li + li { margin-top: 6px; }
+.memo li b { font-weight: 600; }
+.memo code { font: 12px var(--mono); background: var(--panel-2); padding: 1px 5px; border-radius: 4px; }
+.memo h3 { font-size: var(--fs-small); font-weight: 700; color: var(--muted); margin-bottom: 8px; }
+.legend { list-style: none; padding: 0 !important; }
+.legend li { display: grid; grid-template-columns: 16px 74px 1fr; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 0.5px solid var(--border); margin: 0 !important; line-height: 1.4; }
+.legend li span:last-child { color: var(--muted); font-size: 12px; }
+.swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 18px; }
+.sw { border-radius: 8px; overflow: hidden; box-shadow: 0 0 0 0.5px var(--border-2); font-size: var(--fs-small); }
+.sw i { display: block; height: 30px; }
+.sw span { display: block; padding: 4px 6px; font-family: var(--mono); color: var(--fg-2); background: var(--bg); }
+
+/* ---------- narrow (≈1180) ---------- */
+@media (max-width: 1320px) {
+  .window { grid-template-columns: 232px minmax(0, 1fr) 260px; }
+  .activity .now code { display: none; }
+  .tb-title { max-width: 180px; }
+}
+@media (max-width: 1220px) {
+  .tb-btn.label .lbl { display: none; }
+  .tb-btn.label { padding: 0 6px; }
+  .memo-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============ SF Symbols 風グリフ ============ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-sidebar" viewBox="0 0 16 16"><rect x="1.5" y="2.75" width="13" height="10.5" rx="2.2"/><path d="M6 2.75v10.5M3.2 5.3h1.2M3.2 7.3h1.2"/></symbol>
+    <symbol id="i-sidebar-r" viewBox="0 0 16 16"><rect x="1.5" y="2.75" width="13" height="10.5" rx="2.2"/><path d="M10 2.75v10.5M11.6 5.3h1.2M11.6 7.3h1.2"/></symbol>
+    <symbol id="i-compose" viewBox="0 0 16 16"><path d="M13 9v3.2a1.6 1.6 0 0 1-1.6 1.6H3.8a1.6 1.6 0 0 1-1.6-1.6V4.6A1.6 1.6 0 0 1 3.8 3H7"/><path d="M12.1 1.9a1.3 1.3 0 0 1 1.9 1.9L8.6 9.2 6.2 9.8l.6-2.4z"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3.5v9M3.5 8h9"/></symbol>
+    <symbol id="i-house" viewBox="0 0 16 16"><path d="M2.3 7.4 8 2.6l5.7 4.8"/><path d="M3.8 6.3v6.6c0 .4.3.7.7.7h2.4V10h2.2v3.6h2.4c.4 0 .7-.3.7-.7V6.3"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 16 16"><path d="M1.8 4.4c0-.6.5-1.1 1.1-1.1h3.2l1.5 1.5h5.5c.6 0 1.1.5 1.1 1.1v6.4c0 .6-.5 1.1-1.1 1.1H2.9c-.6 0-1.1-.5-1.1-1.1z"/><path d="M1.8 6.6h12.4"/></symbol>
+    <symbol id="i-pull" viewBox="0 0 16 16"><circle cx="4" cy="3.6" r="1.6"/><circle cx="4" cy="12.4" r="1.6"/><circle cx="12" cy="12.4" r="1.6"/><path d="M4 5.2v5.6M12 10.8V6.4a2 2 0 0 0-2-2H7.2"/><path d="M8.6 3 7.2 4.4l1.4 1.4"/></symbol>
+    <symbol id="i-branch" viewBox="0 0 16 16"><circle cx="4.5" cy="3.6" r="1.5"/><circle cx="4.5" cy="12.4" r="1.5"/><circle cx="11.5" cy="5" r="1.5"/><path d="M4.5 5.1v5.8M11.5 6.5c0 2.6-2.2 3.2-5.6 4.6"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.1"/><path d="M8 4.6V8l2.4 1.5"/></symbol>
+    <symbol id="i-sparkles" viewBox="0 0 16 16"><path d="M6.5 2.2 7.6 5.4l3.2 1.1-3.2 1.1-1.1 3.2-1.1-3.2-3.2-1.1 3.2-1.1z"/><path d="M12 9.2l.6 1.6 1.6.6-1.6.6-.6 1.6-.6-1.6-1.6-.6 1.6-.6z"/></symbol>
+    <symbol id="i-mcp" viewBox="0 0 16 16"><circle cx="8" cy="3.4" r="1.7"/><circle cx="3.4" cy="12" r="1.7"/><circle cx="12.6" cy="12" r="1.7"/><path d="M7.1 4.9 4.3 10.5M8.9 4.9l2.8 5.6M5.1 12h5.8"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.1"/><circle cx="8" cy="8" r="4.6"/><path d="M8 1.6v1.8M8 12.6v1.8M1.6 8h1.8M12.6 8h1.8M3.5 3.5l1.3 1.3M11.2 11.2l1.3 1.3M3.5 12.5l1.3-1.3M11.2 4.8l1.3-1.3"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 16 16"><path d="M6 3.5 10.5 8 6 12.5"/></symbol>
+    <symbol id="i-chev-l" viewBox="0 0 16 16"><path d="M10 3.5 5.5 8l4.5 4.5"/></symbol>
+    <symbol id="i-updown" viewBox="0 0 16 16"><path d="M4.5 6 8 2.5 11.5 6M4.5 10 8 13.5 11.5 10"/></symbol>
+    <symbol id="i-terminal" viewBox="0 0 16 16"><rect x="1.6" y="2.6" width="12.8" height="10.8" rx="2.2"/><path d="M4.6 6.2 6.6 8l-2 1.8M8.2 10.2h3.2"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 16 16"><rect x="3.6" y="3.6" width="8.8" height="8.8" rx="1.8" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-clip" viewBox="0 0 16 16"><path d="M12.6 7.6 8 12.2a3 3 0 0 1-4.3-4.3l5-5a2 2 0 0 1 2.9 2.9L6.7 10.7a1 1 0 0 1-1.4-1.4l4.4-4.4"/></symbol>
+    <symbol id="i-up" viewBox="0 0 16 16"><path d="M8 12.6V3.8M4.2 7.4 8 3.6l3.8 3.8"/></symbol>
+    <symbol id="i-check" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2" fill="currentColor" stroke="none"/><path d="M5.2 8.2 7.1 10l3.7-3.9" stroke="#fff" stroke-width="1.6"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 16 16"><path d="M4 1.8h5l3 3v8.4c0 .6-.4 1-1 1H4c-.6 0-1-.4-1-1V2.8c0-.6.4-1 1-1z"/><path d="M9 1.8v3h3"/></symbol>
+    <symbol id="i-pencil" viewBox="0 0 16 16"><path d="M10.8 2.4a1.5 1.5 0 0 1 2.1 2.1L5.4 12l-3 .8.8-3z"/></symbol>
+    <symbol id="i-arrow-ur" viewBox="0 0 16 16"><path d="M5 11 11 5M6 5h5v5"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 16 16"><rect x="3.2" y="7" width="9.6" height="7" rx="1.6"/><path d="M5.3 7V5.2a2.7 2.7 0 0 1 5.4 0V7"/></symbol>
+    <symbol id="i-claude" viewBox="0 0 16 16"><path d="M8 1.5v13M1.5 8h13M3.4 3.4l9.2 9.2M12.6 3.4l-9.2 9.2" stroke-width="1.8"/></symbol>
+
+    <!-- status glyphs: 色だけでなく形で区別する -->
+    <symbol id="g-running" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" stroke-width="2" opacity=".22"/><path class="arc" d="M8 2.4a5.6 5.6 0 0 1 5.6 5.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="g-approval" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7.4" fill="currentColor"/><g fill="var(--on-approval)"><rect x="5" y="4.4" width="1.35" height="5" rx=".67"/><rect x="6.75" y="3.5" width="1.35" height="5.6" rx=".67"/><rect x="8.5" y="3.9" width="1.35" height="5.3" rx=".67"/><rect x="10.2" y="5" width="1.3" height="4.4" rx=".65"/><path d="M5 8.2h6.5v1.6a2.9 2.9 0 0 1-2.9 2.9H7.6A2.9 2.9 0 0 1 5 11.1z"/><path d="M5.2 10.6 3.6 8.6a.75.75 0 0 1 1.1-1l1.4 1.3z"/></g></symbol>
+    <symbol id="g-input" viewBox="0 0 16 16"><path d="M8 2.2c3.4 0 6 2.2 6 5s-2.6 5-6 5c-.6 0-1.2-.1-1.8-.2L3 13.4l.9-2.6C2.700 9.900 2 8.600 2 7.200c0-2.800 2.600-5 6-5z" fill="currentColor"/><g fill="var(--bg)"><circle cx="5.4" cy="7.3" r=".95"/><circle cx="8" cy="7.3" r=".95"/><circle cx="10.6" cy="7.3" r=".95"/></g></symbol>
+    <symbol id="g-idle" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.2" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="g-error" viewBox="0 0 16 16"><path d="M7.1 2.2a1 1 0 0 1 1.8 0l5.6 10.2a1 1 0 0 1-.9 1.5H2.4a1 1 0 0 1-.9-1.5z" fill="currentColor"/><path d="M8 5.8v3.6" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><circle cx="8" cy="11.7" r=".95" fill="#fff"/></symbol>
+    <symbol id="g-stopped" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="5.6" y="5.6" width="4.8" height="4.8" rx="1" fill="currentColor"/></symbol>
+  </defs>
+</svg>
+
+<!-- ============ desktop menu bar (mock) ============ -->
+<header class="menubar">
+  <b>CC Hub</b><span>ファイル</span><span>編集</span><span>表示</span><span>セッション</span><span>ウインドウ</span><span>ヘルプ</span>
+  <div class="right">
+    <div class="appearance" role="group" aria-label="表示モード(モック用)">
+      <button type="button" data-set-theme="light" aria-pressed="true">ライト</button>
+      <button type="button" data-set-theme="dark" aria-pressed="false">ダーク</button>
+    </div>
+    <span>11月11日(水) 12:41</span>
+  </div>
+</header>
+
+<div class="stage">
+<div class="window" role="application" aria-label="CC Hub">
+
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="sidebar" aria-label="サイドバー">
+    <div class="sb-top">
+      <div class="traffic" aria-hidden="true"><span></span><span></span><span></span></div>
+      <button class="tb-btn" type="button" aria-label="サイドバーを隠す" title="サイドバーを隠す"><svg class="i"><use href="#i-sidebar"/></svg></button>
+    </div>
+
+    <div class="sb-scroll">
+      <nav class="sb-section" aria-label="ナビゲーション">
+        <a class="nav-item" href="#"><svg class="i"><use href="#i-house"/></svg>ホーム</a>
+        <a class="nav-item" href="#"><svg class="i"><use href="#i-folder"/></svg>リポジトリ<span class="count">7</span></a>
+        <a class="nav-item" href="#"><svg class="i"><use href="#i-pull"/></svg>PR<span class="count">3</span></a>
+        <a class="nav-item" href="#"><svg class="i"><use href="#i-clock"/></svg>履歴</a>
+        <a class="nav-item" href="#"><svg class="i"><use href="#i-sparkles"/></svg>スキル</a>
+        <a class="nav-item" href="#"><svg class="i"><use href="#i-mcp"/></svg>MCP</a>
+      </nav>
+
+      <section class="sb-section" aria-labelledby="sess-h">
+        <div class="sb-heading"><span id="sess-h">セッション</span>
+          <button class="add" type="button" aria-label="新規セッション" title="新規セッション (⌘N)"><svg class="i"><use href="#i-plus"/></svg></button>
+        </div>
+
+        <div class="group" aria-expanded="true">
+          <div class="group-row"><span class="disclosure"><svg class="i"><use href="#i-chev"/></svg></span><svg class="i folder"><use href="#i-folder"/></svg><span class="name">cc-hub</span><span class="count">3</span></div>
+          <div class="group-list">
+            <div class="sess is-approval" aria-current="true">
+              <svg class="st st-approval" role="img" aria-label="承認待ち"><use href="#g-approval"/></svg>
+              <span class="t">mac 対応: ウィンドウ周り</span>
+              <span class="trail"><span class="capsule approval">承認待ち</span></span>
+              <span class="b">feat/x</span>
+            </div>
+            <div class="sess">
+              <svg class="st st-running" role="img" aria-label="実行中"><use href="#g-running"/></svg>
+              <span class="t">承認キューの API</span>
+              <span class="trail">実行中</span>
+              <span class="b">feat/approval-queue</span>
+            </div>
+            <div class="sess">
+              <svg class="st st-idle" role="img" aria-label="待機"><use href="#g-idle"/></svg>
+              <span class="t">README の整理</span>
+              <span class="trail">18分</span>
+              <span class="b">main</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="group" aria-expanded="true">
+          <div class="group-row"><span class="disclosure"><svg class="i"><use href="#i-chev"/></svg></span><svg class="i folder"><use href="#i-folder"/></svg><span class="name">webportfolio3</span><span class="count">2</span></div>
+          <div class="group-list">
+            <div class="sess">
+              <svg class="st st-input" role="img" aria-label="入力待ち"><use href="#g-input"/></svg>
+              <span class="t">ノード配置の修正</span>
+              <span class="trail input">入力待ち</span>
+              <span class="b">fix/node-layout</span>
+            </div>
+            <div class="sess">
+              <svg class="st st-error" role="img" aria-label="エラー"><use href="#g-error"/></svg>
+              <span class="t">OGP 画像の生成</span>
+              <span class="trail error">エラー</span>
+              <span class="b">feat/ogp</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="group" aria-expanded="false">
+          <div class="group-row"><span class="disclosure"><svg class="i"><use href="#i-chev"/></svg></span><svg class="i folder"><use href="#i-folder"/></svg><span class="name">unity-game</span>
+            <span class="count" style="display:flex;gap:6px;align-items:center"><span class="capsule count-approval" aria-label="承認待ち 1 件">1</span>4</span></div>
+        </div>
+
+        <div class="group" aria-expanded="true">
+          <div class="group-row"><span class="disclosure"><svg class="i"><use href="#i-chev"/></svg></span><svg class="i folder"><use href="#i-folder"/></svg><span class="name">sort-proto</span><span class="count">1</span></div>
+          <div class="group-list">
+            <div class="sess">
+              <svg class="st st-stopped" role="img" aria-label="停止"><use href="#g-stopped"/></svg>
+              <span class="t">プロトタイプ v0</span>
+              <span class="trail">昨日</span>
+              <span class="b">proto/v0</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="sb-foot">
+      <a class="nav-item" href="#"><svg class="i" style="color:var(--fg-2)"><use href="#i-gear"/></svg>設定</a>
+      <span class="host">接続中</span>
+    </div>
+  </aside>
+
+  <!-- ===================== UNIFIED TOOLBAR ===================== -->
+  <header class="toolbar">
+    <div class="tb-title">
+      <h1>mac 対応: ウィンドウ周り</h1>
+      <p>cc-hub — feat/x</p>
+    </div>
+
+    <div class="activity" role="status" aria-label="アクティビティ">
+      <div class="now">
+        <svg class="st st-approval" aria-hidden="true"><use href="#g-approval"/></svg>
+        <b>承認待ち</b>
+        <code>Bash(git push origin feat/x)</code>
+      </div>
+      <div class="usage" title="Session: 42% | Context: 61%">
+        Session 42% <span class="meter"><i style="width:42%"></i></span>
+        <span class="sep">|</span>
+        Context 61% <span class="meter ctx"><i style="width:61%"></i></span>
+      </div>
+      <span class="progress" aria-hidden="true"></span>
+    </div>
+
+    <button class="queue-btn" type="button" title="承認キューを開く">
+      <svg class="st st-approval" aria-hidden="true"><use href="#g-approval"/></svg>承認待ち <span class="capsule count-approval">2</span>
+    </button>
+
+    <div class="tb-group" role="group" aria-label="セッション操作">
+      <button class="tb-btn" type="button" aria-label="ターミナルで開く" title="ターミナルで開く (⌘T)"><svg class="i"><use href="#i-terminal"/></svg></button>
+      <span class="divider"></span>
+      <button class="tb-btn" type="button" aria-label="停止" title="停止 (⌘.)"><svg class="i"><use href="#i-stop"/></svg></button>
+      <span class="divider"></span>
+      <button class="tb-btn label" type="button" title="PR を作成"><svg class="i"><use href="#i-pull"/></svg><span class="lbl">PR を作成</span></button>
+    </div>
+
+    <button class="tb-btn" type="button" aria-label="インスペクタを隠す" title="インスペクタを隠す (⌥⌘0)"><svg class="i"><use href="#i-sidebar-r"/></svg></button>
+  </header>
+
+  <!-- ===================== MAIN ===================== -->
+  <main class="main" aria-label="会話">
+    <div class="jumpbar">
+      <span class="seg"><svg class="i"><use href="#i-folder"/></svg>cc-hub</span>
+      <svg class="i chev" style="width:10px;height:10px"><use href="#i-chev"/></svg>
+      <span class="seg"><svg class="i"><use href="#i-branch"/></svg><span class="mono">feat/x</span></span>
+      <svg class="i chev" style="width:10px;height:10px"><use href="#i-chev"/></svg>
+      <span class="path" title="/Users/yano/dev/cc-hub/.worktrees/feat-x">~/dev/cc-hub/.worktrees/feat-x</span>
+      <span class="right">claude-opus · auto</span>
+    </div>
+
+    <div class="convo-wrap">
+    <div class="convo">
+      <div class="convo-inner">
+        <span class="day">今日 12:03</span>
+
+        <div class="msg-user">mac 版のウインドウを hiddenInset にして、サイドバーに vibrancy を入れて。テストが通ったら push まで進めて。</div>
+
+        <div class="msg-ai">
+          <div class="msg-meta"><svg class="i spark"><use href="#i-claude"/></svg><span class="who">Claude</span>12:04</div>
+          <p><code>packages/desktop/src/main.ts</code> の <code>BrowserWindow</code> を macOS のときだけ次の設定にします。</p>
+          <ul>
+            <li>タイトルバーを隠し、信号ボタンをサイドバー上に置く</li>
+            <li>サイドバー領域だけ背景を透過して <code>vibrancy: 'sidebar'</code> を効かせる</li>
+          </ul>
+<pre><span class="k">if</span> (process.platform === <span class="s">'darwin'</span>) {
+  opts.titleBarStyle = <span class="s">'hiddenInset'</span>
+  opts.trafficLightPosition = { x: <span class="n">18</span>, y: <span class="n">18</span> }
+  opts.vibrancy = <span class="s">'sidebar'</span>
+}</pre>
+        </div>
+
+        <div class="tool" aria-expanded="false">
+          <button class="tool-head" type="button" aria-expanded="false">
+            <span class="disclosure"><svg class="i"><use href="#i-chev"/></svg></span>
+            <svg class="i"><use href="#i-pencil"/></svg><span class="name">Edit</span>
+            <code>packages/desktop/src/main.ts</code>
+            <span class="res"><span class="diff"><span class="add">+12</span> <span class="del">−3</span></span></span>
+          </button>
+        </div>
+
+        <div class="tool" aria-expanded="true">
+          <button class="tool-head" type="button" aria-expanded="true">
+            <span class="disclosure"><svg class="i"><use href="#i-chev"/></svg></span>
+            <svg class="i"><use href="#i-terminal"/></svg><span class="name">Bash</span>
+            <code>npm test</code>
+            <span class="res"><svg class="i okc" style="width:14px;height:14px"><use href="#i-check"/></svg>成功 · 4.2 秒</span>
+          </button>
+<div class="term"><span class="dim">&gt; cc-hub@0.9.0 test</span>
+<span class="dim">&gt; vitest run</span>
+
+ <span class="pass">✓</span> packages/desktop/test/window.test.ts  (6 tests) 41ms
+ <span class="pass">✓</span> packages/web/src/util.test.ts  (18 tests) 22ms
+
+ Test Files  <span class="pass">2 passed</span> (2)
+      Tests  <span class="pass">24 passed</span> (24)</div>
+        </div>
+
+        <div class="msg-ai">
+          <div class="msg-meta"><svg class="i spark"><use href="#i-claude"/></svg><span class="who">Claude</span>12:41</div>
+          <p>テストはすべて通りました。2 件のコミットを <code>origin/feat/x</code> へ push します。</p>
+        </div>
+      </div>
+
+    </div>
+      <div class="scrim" aria-hidden="true"></div>
+    </div>
+
+    <!-- approval sheet: 会話ペインにだけ掛かる(サイドバーで他セッションへ移れる) -->
+    <section class="sheet" role="alertdialog" aria-modal="false" aria-labelledby="ap-t" aria-describedby="ap-d">
+      <div class="sheet-top">
+        <div class="sheet-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#g-approval" style="color:transparent"/></svg></div>
+        <div style="flex:1;min-width:0">
+          <h2 id="ap-t">承認が必要です
+            <span class="pos" aria-label="承認キュー 2 件中 1 件目">
+              <button type="button" aria-label="前へ" disabled><svg class="i" style="width:11px;height:11px"><use href="#i-chev-l"/></svg></button>
+              1 / 2
+              <button type="button" aria-label="次へ"><svg class="i" style="width:11px;height:11px"><use href="#i-chev"/></svg></button>
+            </span>
+          </h2>
+          <p class="lead" id="ap-d">Claude が次のコマンドを実行しようとしています。</p>
+          <div class="cmd"><span class="tool-n">Bash</span>(git push origin feat/x)</div>
+          <div class="facts">
+            <span><svg class="i" style="width:12px;height:12px"><use href="#i-branch"/></svg>feat/x → origin</span>
+            <span>2 コミット</span>
+            <span><svg class="i" style="width:12px;height:12px"><use href="#i-lock"/></svg>リモートに書き込み</span>
+          </div>
+        </div>
+      </div>
+      <div class="sheet-actions">
+        <button class="btn deny" type="button">拒否 <kbd>esc</kbd></button>
+        <span class="spacer"></span>
+        <button class="btn" type="button" title="このセッションでは同じコマンドを再確認しません">許可</button>
+        <button class="btn default" type="button" autofocus>今回だけ許可 <kbd>↩</kbd></button>
+      </div>
+      <p class="hint">「許可」はこのセッション中、同じコマンドを再確認しません。</p>
+    </section>
+
+    <div class="composer">
+      <div class="field">
+        <label class="sr-only" for="prompt">指示</label>
+        <textarea id="prompt" rows="2" placeholder="指示を入力…"></textarea>
+        <div class="field-row">
+          <button class="tb-btn" type="button" aria-label="ファイルを添付" title="ファイルを添付"><svg class="i"><use href="#i-clip"/></svg></button>
+          <button class="popup" type="button" aria-label="モード: auto" title="モード">auto <svg class="i"><use href="#i-updown"/></svg></button>
+          <span class="hint">⌘↩ で送信</span>
+          <button class="send" type="button" aria-label="送信" disabled><svg class="i"><use href="#i-up"/></svg></button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ===================== INSPECTOR ===================== -->
+  <aside class="inspector" aria-label="インスペクタ">
+    <div class="seg-ctl" role="tablist" aria-label="インスペクタ">
+      <button role="tab" aria-selected="true" aria-controls="tab-git" id="t-git" type="button">Git</button>
+      <button role="tab" aria-selected="false" aria-controls="tab-pr" id="t-pr" type="button">PR</button>
+      <button role="tab" aria-selected="false" aria-controls="tab-info" id="t-info" type="button">情報</button>
+    </div>
+
+    <div class="ins-body">
+      <!-- Git -->
+      <div class="ins-pane" id="tab-git" role="tabpanel" aria-labelledby="t-git">
+        <div class="ins-sec">
+          <h3>ブランチ</h3>
+          <dl class="kv">
+            <dt>現在</dt><dd class="mono">feat/x</dd>
+            <dt>ベース</dt><dd class="mono">main</dd>
+            <dt>リモート</dt><dd>↑2 ↓0 <span style="color:var(--muted)">(未 push)</span></dd>
+          </dl>
+        </div>
+        <div class="ins-sec">
+          <h3>変更 <span class="r">4 ファイル · <span class="add">+63</span> <span class="del">−18</span></span></h3>
+          <ul class="files">
+            <li><span class="badge m" aria-label="変更">M</span><span class="fn">main.ts<small>desktop/src</small></span><span class="nums"><span class="add">+12</span> <span class="del">−3</span></span></li>
+            <li><span class="badge m" aria-label="変更">M</span><span class="fn">preload.ts<small>desktop/src</small></span><span class="nums"><span class="add">+4</span> <span class="del">−1</span></span></li>
+            <li><span class="badge a" aria-label="追加">A</span><span class="fn">vibrancy.css<small>web/src</small></span><span class="nums"><span class="add">+38</span></span></li>
+            <li><span class="badge m" aria-label="変更">M</span><span class="fn">styles.css<small>web/src</small></span><span class="nums"><span class="add">+9</span> <span class="del">−14</span></span></li>
+          </ul>
+          <div class="ins-actions"><button class="btn" type="button">差分を表示</button><button class="btn" type="button">コミット…</button></div>
+        </div>
+        <div class="ins-sec">
+          <h3>最近のコミット</h3>
+          <dl class="kv">
+            <dt class="mono">a41c9e2</dt><dd>mac: hiddenInset に切替</dd>
+            <dt class="mono">7d03b1f</dt><dd>サイドバーを透過</dd>
+          </dl>
+        </div>
+      </div>
+
+      <!-- PR -->
+      <div class="ins-pane" id="tab-pr" role="tabpanel" aria-labelledby="t-pr" hidden>
+        <div class="ins-sec">
+          <p class="pr-title"><span class="num">#12</span> mac: hiddenInset とサイドバー vibrancy</p>
+          <p style="margin-top:6px;display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)"><span class="capsule ok">オープン</span><span class="mono">feat/x → main</span></p>
+          <p style="margin-top:8px;font-size:12px"><a class="link" href="#">GitHub で開く <svg class="i" style="width:11px;height:11px;vertical-align:-1px"><use href="#i-arrow-ur"/></svg></a></p>
+        </div>
+        <div class="ins-sec">
+          <h3>チェック <span class="r">3 / 4 成功</span></h3>
+          <ul class="checks">
+            <li><svg class="i" style="color:var(--ok);width:15px;height:15px"><use href="#i-check"/></svg>build (macos-14)<span class="t">1分12秒</span></li>
+            <li><svg class="i" style="color:var(--ok);width:15px;height:15px"><use href="#i-check"/></svg>unit-test<span class="t">48秒</span></li>
+            <li><svg class="i" style="color:var(--ok);width:15px;height:15px"><use href="#i-check"/></svg>typecheck<span class="t">31秒</span></li>
+            <li><svg class="st st-running" role="img" aria-label="実行中" style="width:15px;height:15px"><use href="#g-running"/></svg>e2e (electron)<span class="t">実行中</span></li>
+          </ul>
+        </div>
+        <div class="ins-sec">
+          <h3>レビュー</h3>
+          <p style="font-size:12px;color:var(--muted)">レビュー依頼なし</p>
+        </div>
+      </div>
+
+      <!-- 情報 -->
+      <div class="ins-pane" id="tab-info" role="tabpanel" aria-labelledby="t-info" hidden>
+        <div class="ins-sec">
+          <h3>セッション</h3>
+          <dl class="kv">
+            <dt>モデル</dt><dd class="mono">claude-opus</dd>
+            <dt>モード</dt><dd>auto</dd>
+            <dt>開始</dt><dd>今日 12:03</dd>
+            <dt>状態</dt><dd style="display:flex;gap:6px;align-items:center"><svg class="st st-approval" aria-hidden="true" style="width:14px;height:14px"><use href="#g-approval"/></svg>承認待ち</dd>
+          </dl>
+        </div>
+        <div class="ins-sec">
+          <h3>使用量</h3>
+          <dl class="kv">
+            <dt>コンテキスト</dt><dd><div class="gauge"><div class="bar"><i style="width:61%"></i></div><span>61%</span></div></dd>
+            <dt>セッション</dt><dd><div class="gauge"><div class="bar usage"><i style="width:42%"></i></div><span>42%</span></div></dd>
+            <dt>入力トークン</dt><dd class="mono">182,340</dd>
+            <dt>出力トークン</dt><dd class="mono">12,905</dd>
+          </dl>
+        </div>
+        <div class="ins-sec">
+          <h3>場所</h3>
+          <dl class="kv">
+            <dt>作業フォルダ</dt><dd class="mono">~/dev/cc-hub/.worktrees/feat-x</dd>
+            <dt>セッション ID</dt><dd class="mono">3f9c1a7e</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- ===================== DESIGN MEMO ===================== -->
+<section class="memo" aria-labelledby="memo-h">
+  <h2 id="memo-h">デザインメモ</h2>
+  <p class="sub">Direction C「Native macOS」— Xcode / メール / メモと並べて違和感のない CC Hub</p>
+  <div class="memo-grid">
+    <ul>
+      <li><b>コンセプト</b>: 主役は「ひとつのウインドウで複数の Claude を見張る」こと。装飾は足さず、Xcode のアクティビティビューア(ツールバー中央のカプセル)に「いま何が起きているか」と Session / Context の使用量を集約した。</li>
+      <li><b>文字組み</b>: <code>-apple-system</code> (SF Pro + ヒラギノ角ゴ)。本文 13px / 補足 11px / ウインドウタイトル 13px Bold / セクション見出し 11px Bold。コードと branch は SF Mono 11〜12.5px。行間は会話 1.6、リスト 1.45。</li>
+      <li><b>余白</b>: 4px 刻み (4/8/12/16/20/24)。ツールバー 52px、ジャンプバー 28px、サイドバー行 28px(セッションは2行で約 40px)。会話は最大 720px 幅で中央寄せし、長文を読みやすくした。</li>
+      <li><b>角丸</b>: <code>--radius</code> 6px(小コントロール)/ 10px(ツールブロック・入力欄)/ 16px(シート・ウインドウ)。ツールバーのボタンとアクションボタンは macOS 26 のカプセル形。</li>
+      <li><b>状態の色ロジック</b>: 色は「どれだけ急ぐか」の1軸。オレンジ=人が判断しないと進まない(承認待ち)、緑=人の入力を待つ、青=進行中、赤=失敗、グレー=待機・停止。形も変えて、色が見分けにくくても判別できる(手・吹き出し・回転リング・三角・空円・四角)。</li>
+      <li><b>承認待ちの強調</b>: オレンジを使うのは承認待ちだけ。行の薄い塗り + 左端 2.5px のライン + 末尾カプセル、折りたたんだリポジトリにも件数バッジ、ツールバーに「承認待ち 2」。点滅や赤は使わず、静かでも見落とせない程度にとどめた。</li>
+      <li><b>HIG パターン</b>: ソースリスト(サイドバー + 開閉三角)、統合ツールバー、Xcode 型インスペクタ(セグメンテッドコントロールでタブ切替)、ジャンプバー(cwd をパンくずで表示)、シート(承認)。どれも mac ユーザーが操作を覚えているので、学び直しが要らない。</li>
+      <li><b>シートの範囲</b>: 承認シートは会話ペインにだけ掛け、ウインドウ全体はブロックしない。別セッションへ移っても承認は待ち続けられる。既定ボタンは安全側の「今回だけ許可」(↩)、拒否は左端(esc)。「許可」は常時許可の意味なので既定にしない。</li>
+      <li><b>選択表示</b>: 入力欄にフォーカスがある間、サイドバーの選択はグレー(unemphasized)。青い選択にするとオレンジの承認アイコンと重なって潰れるので、実機と同じ挙動のまま衝突も避けられる。</li>
+      <li><b>コントラスト</b>: Apple 標準の secondaryLabel(50% 黒)は AA を満たさないため、<code>--muted #636368</code> と文字専用の <code>--accent-text</code> / <code>--st-approval-fg</code> を用意。オレンジのバッジは白文字ではなく濃い茶 (<code>--on-approval</code>) にした。</li>
+      <li><b>Electron 側の変更</b>: <code>titleBarStyle: 'hiddenInset'</code>、<code>trafficLightPosition: {x: 18, y: 18}</code>、<code>vibrancy: 'sidebar'</code>、<code>visualEffectState: 'followWindow'</code>、<code>backgroundColor: '#00000000'</code>(サイドバー以外は CSS で不透明に塗る)。ツールバーは <code>-webkit-app-region: drag</code>、ボタン類は <code>no-drag</code>。<code>nativeTheme</code> でダーク追従し、アクセントは <code>systemPreferences.getAccentColor()</code> を <code>--accent</code> に流し込む。</li>
+      <li><b>Web 側の変更</b>: <code>--sans</code> / <code>--mono</code> を mac では system-ui / ui-monospace に変更。<code>html.platform-mac</code> のときだけトークンを差し替え、Windows 版は現行のまま残す。</li>
+    </ul>
+    <div>
+      <h3>状態 — 形・色・ラベル</h3>
+      <ul class="legend">
+        <li><svg class="st st-approval" aria-hidden="true"><use href="#g-approval"/></svg><span>承認待ち</span><span>手のひら・塗り。唯一のオレンジ</span></li>
+        <li><svg class="st st-input" aria-hidden="true"><use href="#g-input"/></svg><span>入力待ち</span><span>吹き出し。緑</span></li>
+        <li><svg class="st st-running" aria-hidden="true"><use href="#g-running"/></svg><span>実行中</span><span>回転リング(動きを減らす設定では静止)</span></li>
+        <li><svg class="st st-error" aria-hidden="true"><use href="#g-error"/></svg><span>エラー</span><span>三角に感嘆符。赤</span></li>
+        <li><svg class="st st-idle" aria-hidden="true"><use href="#g-idle"/></svg><span>待機</span><span>空の円</span></li>
+        <li><svg class="st st-stopped" aria-hidden="true"><use href="#g-stopped"/></svg><span>停止</span><span>円の中に四角</span></li>
+      </ul>
+      <div class="swatches">
+        <div class="sw"><i style="background:var(--accent)"></i><span>--accent</span></div>
+        <div class="sw"><i style="background:var(--st-approval)"></i><span>--st-approval</span></div>
+        <div class="sw"><i style="background:var(--st-input)"></i><span>--st-input</span></div>
+        <div class="sw"><i style="background:var(--st-error)"></i><span>--st-error</span></div>
+        <div class="sw"><i style="background:var(--bg)"></i><span>--bg</span></div>
+        <div class="sw"><i style="background:var(--panel)"></i><span>--panel</span></div>
+        <div class="sw"><i style="background:var(--panel-2)"></i><span>--panel-2</span></div>
+        <div class="sw"><i style="background:var(--sidebar-glass)"></i><span>--sidebar-glass</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var btns = document.querySelectorAll('[data-set-theme]');
+  function setTheme(t) {
+    root.setAttribute('data-theme', t);
+    btns.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.setTheme === t)); });
+  }
+  var q = new URLSearchParams(location.search).get('theme');
+  setTheme(q || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+  btns.forEach(function (b) { b.addEventListener('click', function () { setTheme(b.dataset.setTheme); }); });
+
+  var tabs = document.querySelectorAll('[role="tab"]');
+  tabs.forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      tabs.forEach(function (t) {
+        var on = t === tab;
+        t.setAttribute('aria-selected', String(on));
+        document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+      });
+    });
+  });
+  var cv = document.querySelector('.convo'); cv.scrollTop = cv.scrollHeight;
+  var qt = new URLSearchParams(location.search).get('tab');
+  if (qt) { var el = document.getElementById('t-' + qt); if (el) el.click(); }
+
+  document.querySelectorAll('.group-row').forEach(function (row) {
+    row.addEventListener('click', function () {
+      var g = row.parentElement; g.setAttribute('aria-expanded', g.getAttribute('aria-expanded') === 'true' ? 'false' : 'true');
+    });
+  });
+})();
+</script>
+</body>
+</html>

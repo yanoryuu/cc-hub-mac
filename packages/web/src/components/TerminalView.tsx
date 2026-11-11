@@ -10,6 +10,7 @@ import '@xterm/xterm/css/xterm.css';
 import { onTerm } from '../termBus';
 import { subscribe } from '../ws';
 import { sessionApi } from '../api';
+import { isMod } from '../util';
 
 export interface TerminalHandle {
   /** 正 = 下へ、負 = 上へ(行数) */
@@ -34,13 +35,14 @@ export interface TerminalIo {
   resize(id: string, cols: number, rows: number): Promise<unknown>;
 }
 
+// styles.css の --term-bg と合わせる(ライトの画面でもターミナルは暗いまま)
 const THEME = {
-  background: '#13161c',
-  foreground: '#eceef2',
-  cursor: '#eceef2',
-  cursorAccent: '#13161c',
-  selectionBackground: '#3b4a6b',
-  black: '#1b1e25',
+  background: '#0c0c0e',
+  foreground: '#ededef',
+  cursor: '#ededef',
+  cursorAccent: '#0c0c0e',
+  selectionBackground: 'rgba(111, 199, 212, 0.28)',
+  black: '#1f1f23',
   red: '#f0717d',
   green: '#7fd18b',
   yellow: '#e6b450',
@@ -120,10 +122,10 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
     termRef.current = term;
     fitRef.current = fit;
 
-    // Ctrl+1..9 / Ctrl+Shift+A はアプリのショートカットなので xterm に渡さない
+    // ⌘1..9 / ⌘⇧A(Windows は Ctrl)はアプリのショートカットなので xterm に渡さない
     term.attachCustomKeyEventHandler((e) => {
-      if (e.ctrlKey && !e.altKey && /^[1-9]$/.test(e.key)) return false;
-      if (e.ctrlKey && e.shiftKey && (e.key === 'A' || e.key === 'a')) return false;
+      if (isMod(e) && !e.altKey && /^[0-9]$/.test(e.key)) return false;
+      if (isMod(e) && e.shiftKey && (e.key === 'A' || e.key === 'a')) return false;
       return true;
     });
 

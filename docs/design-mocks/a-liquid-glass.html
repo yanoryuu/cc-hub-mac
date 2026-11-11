@@ -1,0 +1,1046 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CC Hub for macOS — Direction A: Liquid Glass</title>
+<style>
+/* =========================================================
+   Tokens — 既存 packages/web の変数名に対応させてある
+   ========================================================= */
+:root {
+  /* surfaces */
+  --bg: #fbfbfd;            /* 会話シート(不透明) */
+  --bg-term: #1d1f24;       /* ターミナル出力(常に暗・不透明) */
+  --panel: #ffffff;
+  --panel-2: #f2f2f6;
+  --panel-3: #e8e8ee;
+  --border: rgba(0,0,0,.09);
+  --border-2: rgba(0,0,0,.14);
+  --fg: #1d1d1f;
+  --fg-2: #3a3a40;
+  --muted: #5e5e66;         /* on white 6.4:1 */
+  --dim: #74747c;           /* on white 4.7:1 */
+  --accent: #0064d6;        /* 文字用の system blue (on white 5.3:1) */
+  --accent-bg: rgba(0,122,255,.12);
+  --primary: #007aff;
+  --primary-hover: #0a6fe8;
+  --hover: rgba(0,0,0,.05);
+
+  /* status — 色 + 形 + ラベルの三重符号化 */
+  --st-running: #0a7e8c;
+  --st-approval: #9a5700;        /* 文字用 */
+  --st-approval-fill: #f5b83d;   /* 面用 */
+  --st-approval-ink: #3b2400;    /* 面上の文字 (on fill 8.9:1) */
+  --st-input: #1f8a4c;
+  --st-idle: #6e6e76;
+  --st-error: #c8283a;
+  --st-stopped: #8a8a92;
+
+  --approve: #1f8a4c;
+  --deny: #c8283a;
+
+  /* glass */
+  --glass: rgba(255,255,255,.62);
+  --glass-strong: rgba(255,255,255,.78);
+  --glass-border: rgba(255,255,255,.75);     /* 上辺のライトエッジ */
+  --glass-edge: rgba(0,0,0,.08);             /* 外周ヘアライン */
+  --glass-shadow: 0 1px 1px rgba(0,0,0,.04), 0 8px 28px rgba(20,24,40,.12);
+  --glass-approval: rgba(255,214,140,.42);
+  --blur: blur(28px) saturate(180%);
+  --window-tint: rgba(246,246,250,.55);
+
+  /* shape & type */
+  --radius-window: 26px;
+  --radius-panel: 18px;     /* 26 - 8 inset */
+  --radius: 10px;           /* 18 - 8 padding : 行・ボタン */
+  --radius-sm: 6px;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Hiragino Sans", "Hiragino Kaku Gothic ProN", system-ui, sans-serif;
+  --mono: "SF Mono", ui-monospace, Menlo, "Hiragino Sans", monospace;
+
+  --wall-1: #1f6f7a; --wall-2: #f0a272; --wall-3: #6b4fa8; --wall-4: #f6d6b0; --wall-5: #193a5c;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #1b1b1f;
+  --bg-term: #111214;
+  --panel: #232328;
+  --panel-2: #2b2b31;
+  --panel-3: #35353c;
+  --border: rgba(255,255,255,.08);
+  --border-2: rgba(255,255,255,.14);
+  --fg: #f5f5f7;
+  --fg-2: #d8d8de;
+  --muted: #a8a8b2;         /* on #1b1b1f 7.6:1 */
+  --dim: #8e8e98;
+  --accent: #5eaaff;
+  --accent-bg: rgba(10,132,255,.2);
+  --primary: #0a84ff;
+  --primary-hover: #2a95ff;
+  --hover: rgba(255,255,255,.06);
+
+  --st-running: #4fd0dc;
+  --st-approval: #ffc65c;
+  --st-approval-fill: #ffbf47;
+  --st-approval-ink: #2e1c00;
+  --st-input: #5ad38a;
+  --st-idle: #a4a4ae;
+  --st-error: #ff7b88;
+  --st-stopped: #85858f;
+  --approve: #2a9d5c;
+  --deny: #d23a4c;
+
+  --glass: rgba(30,30,36,.58);
+  --glass-strong: rgba(36,36,42,.74);
+  --glass-border: rgba(255,255,255,.16);
+  --glass-edge: rgba(0,0,0,.45);
+  --glass-shadow: 0 1px 1px rgba(0,0,0,.3), 0 10px 32px rgba(0,0,0,.4);
+  --glass-approval: rgba(255,176,40,.2);
+  --window-tint: rgba(22,22,28,.5);
+  --wall-1: #0f3a44; --wall-2: #8a4a2c; --wall-3: #3a2463; --wall-4: #4d3a2a; --wall-5: #0b1a2c;
+  color-scheme: dark;
+}
+
+/* =========================================================
+   Base
+   ========================================================= */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { min-height: 100%; }
+body {
+  font: 13px/1.5 var(--sans);
+  color: var(--fg);
+  -webkit-font-smoothing: antialiased;
+  background: var(--wall-5);
+}
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: 0; }
+:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 55%, transparent); outline-offset: 1px; border-radius: var(--radius-sm); }
+.mono { font-family: var(--mono); font-size: 12px; }
+svg.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* desktop wallpaper — 夕暮れの海辺 (teal / apricot / violet) */
+.desktop {
+  position: relative;
+  min-height: 100vh;
+  padding: 28px 32px 32px;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+  isolation: isolate;
+}
+.desktop::before {
+  content: "";
+  position: absolute; inset: -80px;
+  z-index: -1;
+  background:
+    radial-gradient(40% 55% at 12% 18%, var(--wall-2) 0%, transparent 70%),
+    radial-gradient(45% 60% at 88% 12%, var(--wall-3) 0%, transparent 70%),
+    radial-gradient(55% 50% at 70% 92%, var(--wall-1) 0%, transparent 70%),
+    radial-gradient(35% 40% at 30% 85%, var(--wall-4) 0%, transparent 70%),
+    linear-gradient(160deg, var(--wall-1), var(--wall-5));
+  filter: blur(24px) saturate(120%);
+}
+
+/* =========================================================
+   Window
+   ========================================================= */
+.window {
+  position: relative;
+  width: min(1376px, 100%);
+  height: min(844px, calc(100vh - 60px));
+  min-height: 720px;
+  border-radius: var(--radius-window);
+  background: var(--window-tint);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  box-shadow: 0 0 0 .5px var(--glass-edge), inset 0 0 0 1px var(--glass-border), 0 30px 80px rgba(0,0,0,.35);
+  display: grid;
+  grid-template-columns: clamp(244px, 20vw, 272px) minmax(0, 1fr) clamp(272px, 22vw, 312px);
+  gap: 0;
+  padding: 8px;
+  overflow: hidden;
+}
+
+/* shared glass material */
+.glass {
+  background: var(--glass);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  border: .5px solid var(--glass-edge);
+  box-shadow: inset 0 1px 0 var(--glass-border), var(--glass-shadow);
+}
+
+/* ---------- Sidebar (floating source list) ---------- */
+.sidebar {
+  border-radius: var(--radius-panel);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 8px 8px;
+}
+.titlebar {
+  height: 52px; flex: none;
+  display: flex; align-items: center;
+  padding-left: 12px;
+  gap: 8px;
+}
+.lights { display: flex; gap: 8px; width: 70px; } /* + padding = 78px 予約 */
+.lights span { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 .5px rgba(0,0,0,.2); }
+.lights span:nth-child(1) { background: #ff5f57; }
+.lights span:nth-child(2) { background: #febc2e; }
+.lights span:nth-child(3) { background: #28c840; }
+.titlebar .icon-btn { margin-left: auto; }
+
+.side-head {
+  display: flex; align-items: center;
+  padding: 4px 6px 8px 10px;
+}
+.side-head h2 { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+.side-head .count { color: var(--muted); font-size: 12px; margin-left: 6px; font-weight: 500; }
+.side-head .icon-btn { margin-left: auto; }
+
+.icon-btn {
+  display: inline-grid; place-items: center;
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  color: var(--fg-2);
+}
+.icon-btn:hover { background: var(--hover); color: var(--fg); }
+
+.search {
+  display: flex; align-items: center; gap: 6px;
+  margin: 0 2px 10px;
+  height: 28px; padding: 0 8px;
+  border-radius: 8px;
+  background: var(--hover);
+  color: var(--dim);
+  font-size: 12px;
+}
+.search kbd { margin-left: auto; font: 11px var(--sans); color: var(--dim); }
+
+.sessions { flex: 1; overflow: auto; min-height: 0; padding-bottom: 14px; -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent); }
+.group + .group { margin-top: 10px; }
+.group-label {
+  display: flex; align-items: center; gap: 6px;
+  padding: 2px 10px 4px;
+  font-size: 11px; font-weight: 600; color: var(--muted);
+  letter-spacing: .02em;
+}
+.group-label .n { margin-left: auto; font-weight: 500; }
+
+.row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 18px minmax(0,1fr) auto;
+  align-items: center;
+  column-gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: var(--radius);
+  text-align: left;
+}
+.row:hover { background: var(--hover); }
+.row .name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .branch { grid-column: 2 / 4; font: 11px/1.35 var(--mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .tag { font-size: 11px; color: var(--muted); }
+.row.selected { background: var(--accent-bg); }
+.row.selected .name { color: var(--fg); font-weight: 600; }
+
+/* status icon — 形で区別 */
+.sico { width: 14px; height: 14px; display: inline-grid; place-items: center; color: var(--st); }
+.sico svg { width: 14px; height: 14px; }
+.s-running  { --st: var(--st-running); }
+.s-approval { --st: var(--st-approval); }
+.s-input    { --st: var(--st-input); }
+.s-idle     { --st: var(--st-idle); }
+.s-error    { --st: var(--st-error); }
+.s-stopped  { --st: var(--st-stopped); }
+.s-running .sico svg { animation: breathe 1.8s ease-in-out infinite; }
+@keyframes breathe { 50% { opacity: .45; } }
+
+/* 承認待ち row — approval lens material */
+.row.s-approval {
+  background: var(--glass-approval);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--st-approval-fill) 55%, transparent), inset 0 1px 0 rgba(255,255,255,.35);
+}
+.pill-approval {
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 18px; padding: 0 7px;
+  border-radius: 9px;
+  background: var(--st-approval-fill);
+  color: var(--st-approval-ink);
+  font-size: 11px; font-weight: 700;
+  white-space: nowrap;
+}
+.tag-err { color: var(--st-error); font-weight: 600; }
+
+/* nav */
+.nav {
+  flex: none;
+  border-top: .5px solid var(--border-2);
+  padding-top: 6px;
+  display: grid;
+  gap: 1px;
+}
+.nav button {
+  display: flex; align-items: center; gap: 9px;
+  height: 28px; padding: 0 10px;
+  border-radius: 8px;
+  color: var(--fg-2);
+  font-size: 13px;
+}
+.nav button:hover { background: var(--hover); color: var(--fg); }
+.nav button .badge { margin-left: auto; font-size: 11px; color: var(--muted); }
+.nav svg.i { color: var(--primary); }
+
+/* ---------- Center ---------- */
+.center {
+  min-width: 0; min-height: 0;
+  display: flex; flex-direction: column;
+  padding: 0 8px;
+}
+.toolbar {
+  height: 58px; flex: none;
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 2px 0 6px;
+}
+.toolbar .title { flex: 1 1 auto; min-width: 120px; display: flex; flex-direction: column; justify-content: center; margin-right: auto; }
+.toolbar h1 { font-size: 15px; font-weight: 600; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 8px; }
+.toolbar .sub-line { display: flex; align-items: center; gap: 8px; min-width: 0; margin-top: 2px; }
+.toolbar .cwd { font: 11px/1.3 var(--mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 340px; direction: rtl; text-align: left; }
+.toolbar .cwd bdi { direction: ltr; unicode-bidi: isolate; }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 5px; flex: none;
+  height: 18px; padding: 0 7px;
+  border-radius: 9px;
+  background: var(--hover);
+  box-shadow: inset 0 0 0 .5px var(--border-2);
+  font: 500 11px var(--mono);
+  color: var(--fg-2);
+  white-space: nowrap;
+}
+.chip svg.i { width: 12px; height: 12px; }
+
+/* glass capsule button group (macOS 26 toolbar) */
+.capsule {
+  display: flex; align-items: center;
+  height: 34px; padding: 3px;
+  border-radius: 17px;
+  flex: none;
+}
+.capsule button {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 11px;
+  border-radius: 14px;
+  font-size: 13px; font-weight: 500;
+  color: var(--fg);
+  white-space: nowrap;
+}
+.capsule button:hover { background: var(--hover); }
+.capsule .sep { width: .5px; height: 16px; background: var(--border-2); }
+.capsule button.primary { background: var(--primary); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,.25); }
+.capsule button.primary:hover { background: var(--primary-hover); }
+.capsule button.stop { color: var(--st-error); }
+.capsule.icons button { width: 28px; padding: 0; justify-content: center; }
+
+/* approval queue — signature */
+.queue {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 34px; padding: 0 12px 0 10px;
+  border-radius: 17px;
+  background: var(--glass-approval);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  border: .5px solid color-mix(in srgb, var(--st-approval-fill) 70%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.45), inset 0 0 0 3px color-mix(in srgb, var(--st-approval-fill) 22%, transparent), 0 6px 20px color-mix(in srgb, var(--st-approval-fill) 30%, transparent);
+  color: var(--fg);
+  font-size: 13px; font-weight: 600;
+  overflow: hidden;
+  flex: none;
+}
+.queue .num {
+  min-width: 20px; height: 20px; padding: 0 6px;
+  border-radius: 10px;
+  display: inline-grid; place-items: center;
+  background: var(--st-approval-fill); color: var(--st-approval-ink);
+  font-size: 12px; font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.lens-sweep::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,.55) 50%, transparent 65%);
+  transform: translateX(-120%);
+  animation: sweep 5s ease-in-out 1s infinite;
+  pointer-events: none;
+}
+@keyframes sweep { 0% { transform: translateX(-120%); } 22%, 100% { transform: translateX(120%); } }
+
+/* conversation sheet — 不透明 */
+.sheet {
+  position: relative;
+  flex: 1; min-height: 0;
+  border-radius: var(--radius-panel);
+  background: var(--bg);
+  border: .5px solid var(--border-2);
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.convo {
+  flex: 1; overflow: auto;
+  padding: 24px clamp(20px, 4vw, 56px) 150px;
+}
+.convo > * { max-width: 760px; margin-left: auto; margin-right: auto; }
+.msg + .msg { margin-top: 18px; }
+.day { text-align: center; font-size: 11px; color: var(--dim); margin-bottom: 16px; }
+
+.msg.user {
+  display: flex; justify-content: flex-end;
+}
+.msg.user .bubble {
+  max-width: 78%;
+  padding: 9px 14px;
+  border-radius: 18px 18px 6px 18px;
+  background: var(--primary); color: #fff;
+  font-size: 13.5px;
+}
+.who { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+.who .av { width: 20px; height: 20px; border-radius: 6px; background: linear-gradient(140deg, #d97757, #c25a3a); display: grid; place-items: center; color: #fff; font-size: 11px; font-weight: 700; }
+.who time { font-weight: 400; color: var(--dim); }
+.md { font-size: 13.5px; line-height: 1.65; color: var(--fg); }
+.md p + p, .md p + ul, .md ul + p { margin-top: 8px; }
+.md h3 { font-size: 13.5px; font-weight: 700; margin: 12px 0 4px; }
+.md ul { padding-left: 1.3em; }
+.md li + li { margin-top: 2px; }
+.md code { font: 12px var(--mono); padding: 1px 5px; border-radius: 5px; background: var(--panel-2); box-shadow: inset 0 0 0 .5px var(--border); }
+
+/* tool block */
+.tool {
+  margin-top: 10px;
+  border-radius: 12px;
+  background: var(--panel);
+  border: .5px solid var(--border-2);
+  overflow: hidden;
+}
+.tool summary {
+  list-style: none;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 12.5px;
+}
+.tool summary::-webkit-details-marker { display: none; }
+.tool .chev { transition: transform .2s; color: var(--dim); }
+.tool[open] .chev { transform: rotate(90deg); }
+.tool .tname { font-weight: 600; }
+.tool .cmd { font: 12px var(--mono); color: var(--fg-2); }
+.tool .result { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--st-input); font-weight: 600; white-space: nowrap; }
+.tool .result .t { color: var(--dim); font-weight: 400; }
+.term {
+  background: var(--bg-term);
+  color: #d6d8de;
+  font: 12px/1.6 var(--mono);
+  padding: 10px 14px 12px;
+  white-space: pre;
+  overflow-x: auto;
+}
+.term .ok { color: #6fdc96; } .term .dim { color: #8c9099; } .term .warn { color: #ffcf6b; } .term .path { color: #8cc4ff; }
+
+/* approval card — the lens */
+.approval {
+  position: relative;
+  margin-top: 18px;
+  border-radius: 18px;
+  padding: 6px;
+  background: var(--glass-approval);
+  border: .5px solid color-mix(in srgb, var(--st-approval-fill) 70%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 10px 30px color-mix(in srgb, var(--st-approval-fill) 22%, transparent);
+  overflow: hidden;
+}
+.approval-inner {
+  border-radius: 12px;             /* 18 - 6 concentric */
+  background: var(--panel);
+  padding: 14px 16px 14px;
+  box-shadow: 0 0 0 .5px var(--border-2);
+}
+.approval .head { display: flex; align-items: center; gap: 10px; }
+.approval .head .glyph {
+  width: 28px; height: 28px; border-radius: 9px;
+  display: grid; place-items: center;
+  background: var(--st-approval-fill); color: var(--st-approval-ink);
+}
+.approval .head .glyph svg { width: 16px; height: 16px; stroke-width: 2; }
+.approval h4 { font-size: 14px; font-weight: 700; }
+.approval h4 .tool-sig { font: 600 13px var(--mono); }
+.approval .sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.approval .head .wait { margin-left: auto; font-size: 11px; color: var(--st-approval); font-weight: 600; white-space: nowrap; }
+.approval .detail {
+  margin: 12px 0 12px 38px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--panel-2);
+  font: 12px/1.55 var(--mono);
+  color: var(--fg-2);
+}
+.approval .actions { display: flex; gap: 8px; margin-left: 38px; align-items: center; flex-wrap: wrap; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 14px;
+  border-radius: 15px;
+  font-size: 13px; font-weight: 600;
+  background: var(--panel-2);
+  box-shadow: inset 0 0 0 .5px var(--border-2);
+  color: var(--fg);
+}
+.btn:hover { background: var(--panel-3); }
+.btn.approve { background: var(--approve); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,.2); }
+.btn.approve:hover { filter: brightness(1.06); }
+.btn.deny { color: var(--st-error); }
+.btn kbd { font: 500 11px var(--sans); opacity: .75; }
+.approval .actions .hint { margin-left: auto; font-size: 11px; color: var(--dim); }
+
+.thinking { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; margin-top: 14px; }
+
+/* composer — floating glass */
+.composer-wrap {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 0 clamp(14px, 3vw, 40px) 10px;
+  pointer-events: none;
+  background: linear-gradient(to top, var(--bg) 30%, transparent);
+}
+.composer {
+  pointer-events: auto;
+  max-width: 800px; margin: 0 auto;
+  border-radius: 22px;
+  padding: 8px 8px 8px 14px;
+  background: var(--glass-strong);
+}
+.composer textarea {
+  width: 100%;
+  border: 0; outline: 0; background: transparent;
+  resize: none;
+  font-size: 13.5px; line-height: 1.5;
+  min-height: 42px;
+  padding: 4px 0 0;
+}
+.composer textarea::placeholder { color: var(--dim); }
+.composer .bar { display: flex; align-items: center; gap: 6px; }
+.mode {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 26px; padding: 0 9px 0 10px;
+  border-radius: 13px;
+  background: var(--hover);
+  box-shadow: inset 0 0 0 .5px var(--border-2);
+  font-size: 12px; font-weight: 600;
+}
+.mode .k { color: var(--muted); font-weight: 500; }
+.send {
+  margin-left: auto;
+  width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--primary); color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.25);
+}
+.send svg.i { stroke-width: 2.2; }
+.statusline {
+  pointer-events: auto;
+  max-width: 800px; margin: 6px auto 0;
+  display: flex; align-items: center; gap: 14px;
+  padding: 0 14px;
+  font: 11px var(--mono);
+  color: var(--muted);
+}
+.meter { display: inline-flex; align-items: center; gap: 6px; }
+.meter .track { width: 54px; height: 4px; border-radius: 2px; background: var(--panel-3); overflow: hidden; }
+.meter .track i { display: block; height: 100%; border-radius: 2px; background: var(--primary); }
+.meter.ctx .track i { background: var(--st-running); }
+.statusline .model { margin-left: auto; }
+
+/* ---------- Inspector ---------- */
+.inspector {
+  border-radius: var(--radius-panel);
+  display: flex; flex-direction: column;
+  min-height: 0;
+  padding: 10px 8px 8px;
+}
+.segmented {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  padding: 2px; height: 30px;
+  border-radius: 15px;
+  background: var(--hover);
+  box-shadow: inset 0 0 0 .5px var(--border);
+  margin: 0 2px 12px;
+}
+.segmented button {
+  border-radius: 13px;
+  font-size: 12.5px; font-weight: 500; color: var(--fg-2);
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+}
+.segmented button[aria-selected="true"] {
+  background: var(--glass-strong);
+  color: var(--fg); font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0,0,0,.12), inset 0 0 0 .5px var(--border-2);
+}
+.segmented .c { font-size: 11px; color: var(--muted); font-weight: 500; }
+.tabpanel { flex: 1; overflow: auto; min-height: 0; padding: 0 2px; }
+.tabpanel[hidden] { display: none; }
+
+.card {
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
+  box-shadow: inset 0 0 0 .5px var(--border-2);
+  padding: 10px 12px;
+}
+.card + .card { margin-top: 10px; }
+.sec-label { font-size: 11px; font-weight: 600; color: var(--muted); margin: 0 4px 6px; display: flex; align-items: center; }
+.sec-label .r { margin-left: auto; font-weight: 500; font-family: var(--mono); }
+.files { list-style: none; }
+.files li {
+  display: grid; grid-template-columns: 16px minmax(0,1fr) auto;
+  align-items: center; gap: 7px;
+  padding: 5px 6px;
+  border-radius: 7px;
+  font-size: 12px;
+}
+.files li:hover { background: var(--hover); }
+.files .fn { font-family: var(--mono); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left; }
+.files .k { font: 700 10px var(--mono); width: 16px; height: 16px; border-radius: 4px; display: grid; place-items: center; }
+.k-m { color: var(--st-approval); background: color-mix(in srgb, var(--st-approval-fill) 22%, transparent); }
+.k-a { color: var(--st-input); background: color-mix(in srgb, var(--st-input) 16%, transparent); }
+.k-d { color: var(--st-error); background: color-mix(in srgb, var(--st-error) 14%, transparent); }
+.delta { font: 11px var(--mono); white-space: nowrap; }
+.delta .p { color: var(--st-input); } .delta .m { color: var(--st-error); margin-left: 4px; }
+.commit { display: flex; gap: 6px; margin-top: 10px; }
+.commit input {
+  flex: 1; min-width: 0; height: 30px; padding: 0 10px;
+  border-radius: 8px;
+  border: .5px solid var(--border-2);
+  background: var(--panel);
+  font-size: 12px;
+}
+.commit input::placeholder { color: var(--dim); }
+.commit .btn { height: 30px; border-radius: 8px; padding: 0 12px; font-size: 12px; }
+.pr-title { font-size: 13px; font-weight: 600; line-height: 1.4; }
+.pr-meta { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+.pr-meta .mono { font-size: 11px; }
+.state-open { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: 10px; background: color-mix(in srgb, var(--st-input) 16%, transparent); color: var(--st-input); font-size: 11px; font-weight: 700; margin-bottom: 6px; }
+.checks { list-style: none; margin-top: 4px; }
+.checks li { display: flex; align-items: center; gap: 8px; padding: 5px 2px; font-size: 12px; }
+.checks li + li { border-top: .5px solid var(--border); }
+.checks .t { margin-left: auto; color: var(--dim); font: 11px var(--mono); }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 12px; }
+.kv dt { color: var(--muted); }
+.kv dd { text-align: right; font-variant-numeric: tabular-nums; }
+.kv dd.mono { font-size: 11.5px; }
+.bigbar { margin-top: 8px; }
+.bigbar .lbl { display: flex; font-size: 12px; margin-bottom: 5px; }
+.bigbar .lbl b { margin-left: auto; font-variant-numeric: tabular-nums; }
+.bigbar .track { height: 6px; border-radius: 3px; background: var(--panel-3); overflow: hidden; }
+.bigbar .track i { display: block; height: 100%; border-radius: 3px; background: var(--primary); }
+.bigbar.ctx .track i { background: var(--st-running); }
+.bigbar + .bigbar { margin-top: 12px; }
+
+/* theme toggle */
+.theme-toggle svg.moon { display: none; }
+:root[data-theme="dark"] .theme-toggle svg.sun { display: none; }
+:root[data-theme="dark"] .theme-toggle svg.moon { display: block; }
+
+/* ---------- Narrower (1180) ---------- */
+@media (max-width: 1280px) {
+  .window { grid-template-columns: 232px minmax(0,1fr) 252px; }
+  .toolbar h1 { font-size: 14px; }
+  .toolbar .cwd { max-width: 220px; }
+  .capsule.actions button .lbl-long { display: none; }
+}
+@media (max-width: 1000px) {
+  .window { grid-template-columns: 220px minmax(0,1fr); }
+  .inspector { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lens-sweep::after, .s-running .sico svg { animation: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root { --glass: #f2f2f6; --glass-strong: #ffffff; --window-tint: #e9e9ee; }
+  :root[data-theme="dark"] { --glass: #26262c; --glass-strong: #2e2e34; --window-tint: #1a1a1f; }
+}
+
+/* ---------- Design memo ---------- */
+.memo {
+  max-width: 1100px; margin: 0 auto;
+  padding: 40px 32px 72px;
+  color: var(--fg);
+}
+.memo-card { border-radius: 22px; padding: 28px 32px; background: var(--glass-strong); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); border: .5px solid var(--glass-edge); box-shadow: inset 0 1px 0 var(--glass-border), var(--glass-shadow); }
+.memo h2 { font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+.memo .lede { color: var(--muted); margin-top: 4px; font-size: 13px; }
+.memo ul { margin-top: 18px; padding-left: 1.2em; columns: 2 420px; column-gap: 40px; }
+.memo li { font-size: 13px; line-height: 1.7; margin-bottom: 10px; break-inside: avoid; }
+.memo li b { font-weight: 700; }
+.memo code { font: 12px var(--mono); padding: 1px 5px; border-radius: 5px; background: var(--hover); }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></symbol>
+  <symbol id="i-sidebar" viewBox="0 0 16 16"><rect x="1.8" y="2.8" width="12.4" height="10.4" rx="2.5"/><path d="M6 3v10"/></symbol>
+  <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.2"/><path d="m10.2 10.2 3 3"/></symbol>
+  <symbol id="i-branch" viewBox="0 0 16 16"><circle cx="4.5" cy="3.5" r="1.5"/><circle cx="4.5" cy="12.5" r="1.5"/><circle cx="11.5" cy="5.5" r="1.5"/><path d="M4.5 5v6M11.5 7c0 3-7 2-7 4"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 16 16"><path d="M2 4.5c0-.8.6-1.5 1.5-1.5h3l1.5 1.5h4.5c.8 0 1.5.7 1.5 1.5v5.5c0 .8-.7 1.5-1.5 1.5h-9c-.9 0-1.5-.7-1.5-1.5z"/></symbol>
+  <symbol id="i-home" viewBox="0 0 16 16"><path d="M2.5 7.5 8 3l5.5 4.5V13a.5.5 0 0 1-.5.5H10V10H6v3.5H3a.5.5 0 0 1-.5-.5z"/></symbol>
+  <symbol id="i-repo" viewBox="0 0 16 16"><path d="M3.5 2.5h8a1 1 0 0 1 1 1v9.5H4.5a1 1 0 0 1-1-1z"/><path d="M3.5 11.5a1 1 0 0 1 1-1h8"/></symbol>
+  <symbol id="i-pr" viewBox="0 0 16 16"><circle cx="4" cy="3.5" r="1.5"/><circle cx="4" cy="12.5" r="1.5"/><circle cx="12" cy="12.5" r="1.5"/><path d="M4 5v6M12 11V6.5A2 2 0 0 0 10 4.5H7.5M9 3l-1.5 1.5L9 6"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M8 5v3l2 1.5"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 16 16"><path d="M8 2.5 9.3 6.7 13.5 8 9.3 9.3 8 13.5 6.7 9.3 2.5 8l4.2-1.3z"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 16 16"><path d="M6 2.5v3M10 2.5v3M4.5 5.5h7v2a3.5 3.5 0 0 1-7 0zM8 11v2.5"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2"/><path d="M8 1.8v1.6M8 12.6v1.6M14.2 8h-1.6M3.4 8H1.8M12.4 3.6l-1.1 1.1M4.7 11.3l-1.1 1.1M12.4 12.4l-1.1-1.1M4.7 4.7 3.6 3.6"/></symbol>
+  <symbol id="i-terminal" viewBox="0 0 16 16"><rect x="1.8" y="2.8" width="12.4" height="10.4" rx="2.5"/><path d="m4.5 6.5 2 1.5-2 1.5M8 10h3"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 16 16"><rect x="4" y="4" width="8" height="8" rx="1.5"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 16 16"><path d="M10.5 5 6 9.5a1.4 1.4 0 0 0 2 2l5-5a2.8 2.8 0 0 0-4-4l-5 5a4.2 4.2 0 0 0 6 6l4-4"/></symbol>
+  <symbol id="i-up" viewBox="0 0 16 16"><path d="M8 13V3.5M4 7.5l4-4 4 4"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 16 16"><path d="m6 4 4 4-4 4"/></symbol>
+  <symbol id="i-down" viewBox="0 0 16 16"><path d="m4.5 6.5 3.5 3.5 3.5-3.5"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.8"/><path d="M8 1.5v1.5M8 13v1.5M14.5 8H13M3 8H1.5M12.6 3.4l-1 1M4.4 11.6l-1 1M12.6 12.6l-1-1M4.4 4.4l-1-1"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 16 16"><path d="M13 9.5A5.5 5.5 0 0 1 6.5 3a5.5 5.5 0 1 0 6.5 6.5z"/></symbol>
+  <symbol id="i-inspector" viewBox="0 0 16 16"><rect x="1.8" y="2.8" width="12.4" height="10.4" rx="2.5"/><path d="M10 3v10"/></symbol>
+  <symbol id="i-check" viewBox="0 0 16 16"><path d="m3.5 8.5 3 3 6-7"/></symbol>
+  <symbol id="i-hand" viewBox="0 0 16 16"><path d="M6 8V3.5a1 1 0 0 1 2 0V7.5M8 7V2.8a1 1 0 0 1 2 0V7.5M10 7.5V4a1 1 0 0 1 2 0v5a5 5 0 0 1-5 5 4 4 0 0 1-3.4-1.9L2.3 9.8a1 1 0 0 1 1.6-1.1L6 10.5"/></symbol>
+  <!-- status glyphs -->
+  <symbol id="s-running" viewBox="0 0 14 14"><circle cx="7" cy="7" r="4.5" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="s-approval" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" rx="3.5" fill="currentColor" stroke="none"/><path d="M5.5 4.3v5.4M8.5 4.3v5.4" stroke="var(--st-approval-ink)" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="s-input" viewBox="0 0 14 14"><path d="M2.5 11.5 3 9l6-6 2 2-6 6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <symbol id="s-idle" viewBox="0 0 14 14"><circle cx="7" cy="7" r="4.2" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+  <symbol id="s-error" viewBox="0 0 14 14"><path d="M7 1.5 13 12H1z" fill="currentColor"/><path d="M7 5.3v3M7 10.2v.1" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="s-stopped" viewBox="0 0 14 14"><rect x="3" y="3" width="8" height="8" rx="1.5" fill="currentColor"/></symbol>
+</svg>
+
+<main class="desktop">
+  <div class="window" role="application" aria-label="CC Hub">
+
+    <!-- ================= Sidebar ================= -->
+    <aside class="sidebar glass" aria-label="セッション一覧">
+      <div class="titlebar">
+        <div class="lights" aria-hidden="true"><span></span><span></span><span></span></div>
+        <button class="icon-btn" aria-label="サイドバーを隠す"><svg class="i"><use href="#i-sidebar"/></svg></button>
+      </div>
+
+      <div class="side-head">
+        <h2>セッション</h2><span class="count">9</span>
+        <button class="icon-btn" aria-label="新しいセッション" title="新しいセッション (⌘N)"><svg class="i"><use href="#i-plus"/></svg></button>
+      </div>
+      <div class="search"><svg class="i" style="width:13px;height:13px"><use href="#i-search"/></svg>検索<kbd>⌘K</kbd></div>
+
+      <nav class="sessions">
+        <div class="group">
+          <div class="group-label"><svg class="i" style="width:12px;height:12px"><use href="#i-folder"/></svg>cc-hub<span class="n">4</span></div>
+          <button class="row s-approval selected" aria-current="true">
+            <span class="sico" aria-hidden="true"><svg><use href="#s-approval"/></svg></span>
+            <span class="name">mac 版タイトルバー対応</span>
+            <span class="pill-approval">承認待ち</span>
+            <span class="branch">feat/x</span>
+          </button>
+          <button class="row s-running">
+            <span class="sico" aria-hidden="true"><svg><use href="#s-running"/></svg></span>
+            <span class="name">通知の重複を修正</span>
+            <span class="tag">実行中</span>
+            <span class="branch">fix/toast-dedupe</span>
+          </button>
+          <button class="row s-input">
+            <span class="sico" aria-hidden="true"><svg><use href="#s-input"/></svg></span>
+            <span class="name">PR 一覧のページング</span>
+            <span class="tag">入力待ち</span>
+            <span class="branch">feat/prs-paging</span>
+          </button>
+          <button class="row s-idle">
+            <span class="sico" aria-hidden="true"><svg><use href="#s-idle"/></svg></span>
+            <span class="name">README 更新</span>
+            <span class="tag">待機</span>
+            <span class="branch">main</span>
+          </button>
+        </div>
+
+        <div class="group">
+          <div class="group-label"><svg class="i" style="width:12px;height:12px"><use href="#i-folder"/></svg>webportfolio3<span class="n">3</span></div>
+          <button class="row s-approval">
+            <span class="sico" aria-hidden="true"><svg><use href="#s-approval"/></svg></span>
+            <span class="name">グラフのノード配置</span>
+            <span class="pill-approval">承認待ち</span>
+            <span class="branch">feat/force-layout</span>
+          </button>
+          <button class="row s-running">
+            <span class="sico" aria-hidden="true"><svg><use href="#s-running"/></svg></span>
+            <span class="name">作品ページの OGP</span>
+            <span class="tag">実行中</span>
+            <span class="branch">feat/ogp</span>
+          </button>
+          <button class="row s-error">
+            <span class="sico" aria-hidden="true"><svg><use href="#s-error"/></svg></span>
+            <span class="name">デプロイ設定</span>
+            <span class="tag tag-err">エラー</span>
+            <span class="branch">chore/deploy</span>
+          </button>
+        </div>
+
+        <div class="group">
+          <div class="group-label"><svg class="i" style="width:12px;height:12px"><use href="#i-folder"/></svg>unity-game<span class="n">2</span></div>
+          <button class="row s-input">
+            <span class="sico" aria-hidden="true"><svg><use href="#s-input"/></svg></span>
+            <span class="name">4D ソートの判定</span>
+            <span class="tag">入力待ち</span>
+            <span class="branch">proto/sort-4d</span>
+          </button>
+          <button class="row s-stopped">
+            <span class="sico" aria-hidden="true"><svg><use href="#s-stopped"/></svg></span>
+            <span class="name">敵 AI のリファクタ</span>
+            <span class="tag">停止</span>
+            <span class="branch">refactor/enemy-ai</span>
+          </button>
+        </div>
+      </nav>
+
+      <nav class="nav" aria-label="メイン">
+        <button><svg class="i"><use href="#i-home"/></svg>ホーム</button>
+        <button><svg class="i"><use href="#i-repo"/></svg>リポジトリ<span class="badge">6</span></button>
+        <button><svg class="i"><use href="#i-pr"/></svg>PR<span class="badge">3</span></button>
+        <button><svg class="i"><use href="#i-clock"/></svg>履歴</button>
+        <button><svg class="i"><use href="#i-spark"/></svg>スキル</button>
+        <button><svg class="i"><use href="#i-plug"/></svg>MCP</button>
+        <button><svg class="i"><use href="#i-gear"/></svg>設定</button>
+      </nav>
+    </aside>
+
+    <!-- ================= Center ================= -->
+    <section class="center" aria-label="セッション">
+      <header class="toolbar">
+        <div class="title">
+          <h1>mac 版タイトルバー対応</h1>
+          <div class="sub-line"><span class="chip"><svg class="i"><use href="#i-branch"/></svg>cc-hub · feat/x</span><span class="cwd" title="/Users/yano/cc-hub-mac/.worktrees/feat-x/packages/desktop"><bdi>/Users/yano/cc-hub-mac/.worktrees/feat-x/packages/desktop</bdi></span></div>
+        </div>
+
+        <div class="capsule glass actions">
+          <button><svg class="i"><use href="#i-terminal"/></svg><span class="lbl-long">ターミナルで開く</span></button>
+          <span class="sep"></span>
+          <button class="stop" aria-label="停止"><svg class="i"><use href="#i-stop"/></svg><span class="lbl-long">停止</span></button>
+          <button class="primary"><svg class="i"><use href="#i-pr"/></svg>PR を作成</button>
+        </div>
+
+        <button class="queue lens-sweep" aria-label="承認待ち 2 件を表示">
+          <span class="sico s-approval" aria-hidden="true"><svg><use href="#s-approval"/></svg></span>
+          <span class="lbl">承認待ち</span><span class="num">2</span>
+        </button>
+
+        <div class="capsule glass icons">
+          <button class="theme-toggle" id="themeToggle" aria-label="外観を切り替え"><svg class="i sun"><use href="#i-sun"/></svg><svg class="i moon"><use href="#i-moon"/></svg></button>
+          <button aria-label="インスペクタを隠す"><svg class="i"><use href="#i-inspector"/></svg></button>
+        </div>
+      </header>
+
+      <div class="sheet">
+        <div class="convo">
+          <div class="day">今日 14:02</div>
+
+          <div class="msg user">
+            <div class="bubble">macOS 版でタイトルバーを hiddenInset にして、信号ボタンとサイドバーが重ならないようにして。テストが通ったら feat/x に push まで。</div>
+          </div>
+
+          <div class="msg">
+            <div class="who"><span class="av">C</span>Claude<time>14:02</time></div>
+            <div class="md">
+              <p>了解です。<code>packages/desktop/src/main.ts</code> の <code>BrowserWindow</code> 設定と、サイドバー上端の余白を変更します。</p>
+              <h3>変更点</h3>
+              <ul>
+                <li><code>titleBarStyle: 'hiddenInset'</code> と <code>trafficLightPosition: {x: 18, y: 18}</code> を追加</li>
+                <li>サイドバー先頭に 78px のドラッグ領域(<code>-webkit-app-region: drag</code>)を確保</li>
+                <li>Windows では従来どおり <code>titleBarOverlay</code> を使うよう分岐</li>
+              </ul>
+            </div>
+            <details class="tool">
+              <summary>
+                <svg class="i chev"><use href="#i-chev"/></svg>
+                <span class="tname">Bash</span><span class="cmd">npm test</span>
+                <span class="result"><svg class="i" style="width:14px;height:14px"><use href="#i-check"/></svg>48 件成功<span class="t">· 2.3s</span></span>
+              </summary>
+              <div class="term"><span class="dim">&gt; cc-hub@0.9.0 test</span>
+<span class="dim">&gt; vitest run</span>
+
+ <span class="ok">✓</span> <span class="path">packages/desktop/test/window.test.ts</span> (12)
+ <span class="ok">✓</span> <span class="path">packages/web/src/components/SessionList.test.tsx</span> (21)
+ <span class="ok">✓</span> <span class="path">packages/server/test/approval.test.ts</span> (15)
+
+ <span class="ok">Test Files  3 passed (3)</span>
+      Tests  <span class="ok">48 passed</span> (48)
+   Duration  2.31s</div>
+            </details>
+          </div>
+
+          <div class="msg">
+            <div class="who"><span class="av">C</span>Claude<time>14:04</time></div>
+            <div class="md"><p>テストはすべて成功しました。リモートに push します。</p></div>
+            <div class="term" style="border-radius:12px;margin-top:10px"><span class="dim">$</span> git status --short
+<span class="warn"> M</span> packages/desktop/src/main.ts
+<span class="warn"> M</span> packages/web/src/styles.css
+<span class="ok">A </span> packages/desktop/src/trafficLights.ts
+<span class="dim">$</span> git commit -m "feat(mac): hiddenInset title bar"
+[feat/x 3f9a2c1] feat(mac): hiddenInset title bar
+ 3 files changed, 64 insertions(+), 9 deletions(-)</div>
+
+            <div class="approval lens-sweep" role="alert" aria-labelledby="ap-title">
+              <div class="approval-inner">
+                <div class="head">
+                  <span class="glyph" aria-hidden="true"><svg class="i"><use href="#i-hand"/></svg></span>
+                  <div>
+                    <h4 id="ap-title">承認が必要です: <span class="tool-sig">Bash(git push origin feat/x)</span></h4>
+                    <div class="sub">リモートリポジトリへの書き込みは、毎回確認する設定になっています</div>
+                  </div>
+                  <span class="wait">1 分前から</span>
+                </div>
+                <div class="detail">git push origin feat/x<br><span style="color:var(--muted)">→ github.com/RyuichiYano/cc-hub · 1 commit</span></div>
+                <div class="actions">
+                  <button class="btn approve">許可<kbd>⌘↩</kbd></button>
+                  <button class="btn">今回だけ許可</button>
+                  <button class="btn deny">拒否<kbd>esc</kbd></button>
+                  <span class="hint">「許可」は git push を以後も自動で許可します</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="composer-wrap">
+          <div class="composer glass">
+            <label class="sr-only" for="prompt">指示</label>
+            <textarea id="prompt" rows="2" placeholder="指示を入力…  (⇧↩ で改行)"></textarea>
+            <div class="bar">
+              <button class="icon-btn" aria-label="ファイルを添付"><svg class="i"><use href="#i-clip"/></svg></button>
+              <button class="mode" aria-label="承認モード"><span class="k">モード</span>auto<svg class="i" style="width:12px;height:12px"><use href="#i-down"/></svg></button>
+              <button class="send" aria-label="送信"><svg class="i"><use href="#i-up"/></svg></button>
+            </div>
+          </div>
+          <div class="statusline" aria-label="使用状況">
+            <span class="meter"><span>Session: 42%</span><span class="track"><i style="width:42%"></i></span></span>
+            <span aria-hidden="true">|</span>
+            <span class="meter ctx"><span>Context: 61%</span><span class="track"><i style="width:61%"></i></span></span>
+            <span class="model">opus · 128k / 200k</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= Inspector ================= -->
+    <aside class="inspector glass" aria-label="インスペクタ">
+      <div class="segmented" role="tablist">
+        <button role="tab" aria-selected="true" aria-controls="tab-git" id="t-git">Git <span class="c">3</span></button>
+        <button role="tab" aria-selected="false" aria-controls="tab-pr" id="t-pr">PR</button>
+        <button role="tab" aria-selected="false" aria-controls="tab-info" id="t-info">情報</button>
+      </div>
+
+      <div class="tabpanel" id="tab-git" role="tabpanel" aria-labelledby="t-git">
+        <div class="sec-label">変更されたファイル<span class="r"><span style="color:var(--st-input)">+64</span> <span style="color:var(--st-error)">−9</span></span></div>
+        <div class="card" style="padding:4px">
+          <ul class="files">
+            <li><span class="k k-m">M</span><span class="fn">packages/desktop/src/main.ts</span><span class="delta"><span class="p">+22</span><span class="m">−6</span></span></li>
+            <li><span class="k k-a">A</span><span class="fn">packages/desktop/src/trafficLights.ts</span><span class="delta"><span class="p">+31</span><span class="m">−0</span></span></li>
+            <li><span class="k k-m">M</span><span class="fn">packages/web/src/styles.css</span><span class="delta"><span class="p">+11</span><span class="m">−3</span></span></li>
+          </ul>
+        </div>
+        <div class="sec-label" style="margin-top:14px">ブランチ</div>
+        <div class="card">
+          <dl class="kv">
+            <dt>現在</dt><dd class="mono">feat/x</dd>
+            <dt>ベース</dt><dd class="mono">main</dd>
+            <dt>未 push</dt><dd>1 コミット</dd>
+          </dl>
+        </div>
+        <div class="commit">
+          <input placeholder="コミットメッセージ" aria-label="コミットメッセージ">
+          <button class="btn">コミット</button>
+        </div>
+      </div>
+
+      <div class="tabpanel" id="tab-pr" role="tabpanel" aria-labelledby="t-pr" hidden>
+        <div class="card">
+          <span class="state-open"><svg class="i" style="width:12px;height:12px"><use href="#i-pr"/></svg>オープン</span>
+          <div class="pr-title">#12 feat(mac): hiddenInset タイトルバーと信号ボタン位置</div>
+          <div class="pr-meta"><span class="mono">feat/x → main</span> · 2 時間前</div>
+        </div>
+        <div class="sec-label" style="margin-top:14px">チェック<span class="r">2 / 3</span></div>
+        <div class="card">
+          <ul class="checks">
+            <li class="s-input"><span class="sico"><svg class="i" style="width:14px;height:14px;stroke-width:2"><use href="#i-check"/></svg></span>build (macos-14)<span class="t">1m 42s</span></li>
+            <li class="s-input"><span class="sico"><svg class="i" style="width:14px;height:14px;stroke-width:2"><use href="#i-check"/></svg></span>test<span class="t">58s</span></li>
+            <li class="s-running"><span class="sico"><svg><use href="#s-running"/></svg></span>lint — 実行中<span class="t">0:21</span></li>
+          </ul>
+        </div>
+        <div class="sec-label" style="margin-top:14px">レビュー</div>
+        <div class="card"><span class="muted" style="color:var(--muted)">レビュー依頼はまだありません</span></div>
+      </div>
+
+      <div class="tabpanel" id="tab-info" role="tabpanel" aria-labelledby="t-info" hidden>
+        <div class="card">
+          <dl class="kv">
+            <dt>モデル</dt><dd class="mono">claude-opus-4</dd>
+            <dt>モード</dt><dd>auto</dd>
+            <dt>開始</dt><dd>今日 14:01</dd>
+            <dt>入力トークン</dt><dd>112,480</dd>
+            <dt>出力トークン</dt><dd>15,904</dd>
+            <dt>費用</dt><dd>$1.84</dd>
+          </dl>
+        </div>
+        <div class="card">
+          <div class="bigbar"><div class="lbl">Session<b>42%</b></div><div class="track"><i style="width:42%"></i></div></div>
+          <div class="bigbar ctx"><div class="lbl">Context<b>61%</b></div><div class="track"><i style="width:61%"></i></div></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<section class="memo" aria-labelledby="memo-h">
+  <div class="memo-card">
+    <h2 id="memo-h">デザインメモ — Direction A「Liquid Glass」</h2>
+    <p class="lede">macOS 26 の HIG に沿い、ガラスは「操作の層」だけに使い、読む層は不透明に保つ。</p>
+    <ul>
+      <li><b>コンセプト</b>: 多数のエージェントを見守る「管制窓」。ガラスはサイドバー・ツールバー・コンポーザー・インスペクタなど浮遊する操作層に限定し、その下を流れる会話シートは不透明な紙として扱う。</li>
+      <li><b>シグネチャー「承認レンズ」</b>: 承認待ちだけがアンバーに色付いたガラスを持つ。ツールバーのキュー、サイドバーの行、会話内カードの 3 か所が同じ素材・同じ光の筋(5 秒に 1 回)でつながり、どこにいても「ここで止まっている」と分かる。</li>
+      <li><b>タイポグラフィ</b>: SF Pro(<code>-apple-system</code>)+ ヒラギノ角ゴ。11 ラベル / 12 補足 / 13 本文(macOS 標準)/ 13.5 会話 / 15 見出し / 22 画面タイトル。等幅は SF Mono 11–12。ウェイトは 400 / 500 / 600 / 700 のみ。</li>
+      <li><b>余白</b>: 4px グリッド(4・6・8・10・12・14・24)。ウィンドウ内側 8px、行のパディング 6×8px、会話の段落間 18px。</li>
+      <li><b>角丸(同心円)</b>: ウィンドウ 26 → パネル 18(内側 8px)→ 行・カード 10、承認カード 18 → 内側 12(6px)。ボタンとチップはすべてカプセル型(高さの半分)。</li>
+      <li><b>状態色</b>: 色・形・ラベルの 3 つで表す(● 実行中 / 角丸の ‖ 承認待ち / ✎ 入力待ち / ○ 待機 / ▲ エラー / ■ 停止)。実行中は accent の青と混ざらないようティール。承認待ちは面用 <code>--st-approval-fill</code> と文字用 <code>--st-approval</code> に分け、明暗どちらでも AA を確保。</li>
+      <li><b>ガラスを使う場所</b>: サイドバー、ツールバーのカプセル、承認キュー、コンポーザー、インスペクタ。<code>blur(28px) saturate(180%)</code> に、上辺 1px のライトエッジと外周 0.5px のヘアラインを重ねる。</li>
+      <li><b>ガラスを使わない場所</b>: 会話本文、ツール出力、ターミナル(<code>--bg-term</code> で常に暗く不透明)、コード、差分。読む・コピーする面に背景が透けてはいけない。<code>prefers-reduced-transparency</code> のときは不透明色に切り替える。</li>
+      <li><b>コントラスト</b>: ガラスの地は白 62% / 黒 58% 以上を保ち、文字は <code>--fg</code> / <code>--muted</code> のみ。<code>--dim</code> はプレースホルダとタイムスタンプ以外に使わない。壁紙が派手でも AA を下回らない値にしている。</li>
+      <li><b>Electron で必要な変更</b>: <code>titleBarStyle: 'hiddenInset'</code>、<code>trafficLightPosition: {x:18,y:18}</code>、<code>vibrancy: 'sidebar'</code> または <code>'under-window'</code> + <code>visualEffectState: 'followWindow'</code>、<code>transparent</code> 系は使わず <code>backgroundColor: '#00000000'</code>。ドラッグ領域は <code>-webkit-app-region: drag</code>(ボタンは no-drag)。テーマは <code>nativeTheme.themeSource</code> と同期させる。</li>
+      <li><b>移植</b>: トークン名は既存の <code>--bg / --panel / --fg / --st-*</code> にそのまま対応。追加分は <code>--glass*</code>、<code>--blur</code>、<code>--st-approval-fill/-ink</code>、<code>--radius-window/-panel</code>。</li>
+    </ul>
+  </div>
+</section>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var mq = window.matchMedia('(prefers-color-scheme: dark)');
+  var q = new URLSearchParams(location.search).get('theme');
+  root.dataset.theme = q || (mq.matches ? 'dark' : 'light');
+  var c = document.querySelector('.convo'); c.scrollTop = c.scrollHeight;
+  document.getElementById('themeToggle').addEventListener('click', function () {
+    root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+  });
+  var tabs = document.querySelectorAll('.segmented [role="tab"]');
+  tabs.forEach(function (t) {
+    t.addEventListener('click', function () {
+      tabs.forEach(function (o) {
+        var on = o === t;
+        o.setAttribute('aria-selected', on);
+        document.getElementById(o.getAttribute('aria-controls')).hidden = !on;
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

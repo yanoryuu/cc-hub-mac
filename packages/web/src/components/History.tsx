@@ -1,4 +1,4 @@
-// 履歴: ~/.claude/projects の会話(transcript)一覧 → 中身のプレビュー → CC Hub / PowerShell で再開
+// 履歴: ~/.claude/projects の会話(transcript)一覧 → 中身のプレビュー → CC Hub / ターミナルで再開
 // デスクトップは一覧 + 右に詳細の 2 ペイン、モバイルは一覧 → 全画面の詳細。管理画面の「履歴」タブにも埋め込む
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { HistoryEntry, HistoryMessage, SessionInfo } from '@cc-hub/shared';
@@ -359,7 +359,7 @@ function HistoryDetail({ entry, mobile, onBack }: { entry: HistoryEntry; mobile:
       </button>
       {!mobile && (
         <button className="btn" disabled={!!busy} onClick={() => setConfirmPs(true)}>
-          PowerShell で再開
+          ターミナルで再開
         </button>
       )}
     </div>
@@ -407,18 +407,18 @@ function HistoryDetail({ entry, mobile, onBack }: { entry: HistoryEntry; mobile:
 
   const confirm = confirmPs && (
     <ConfirmModal
-      title="PowerShell で再開"
-      confirmLabel="PowerShell で開く"
+      title="ターミナルで再開"
+      confirmLabel="ターミナルで開く"
       busy={busy === 'terminal'}
       error={actErr}
       onConfirm={() => void resume('terminal')}
       onClose={() => setConfirmPs(false)}
     >
       <p>
-        新しい PowerShell のウィンドウで <span className="mono">claude --resume</span> を実行し、この会話を続けます。
+        ターミナル(Terminal.app)の新しいウィンドウで <span className="mono">claude --resume</span> を実行し、この会話を続けます。
       </p>
       <p className="muted small mono">{full.cwd}</p>
-      <p className="muted small">CC Hub の一覧には「PowerShell で実行中」として表示され、あとから CC Hub に戻せます。</p>
+      <p className="muted small">CC Hub の一覧には「ターミナルで実行中」として表示され、あとから CC Hub に戻せます。</p>
     </ConfirmModal>
   );
 

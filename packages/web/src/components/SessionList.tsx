@@ -3,7 +3,7 @@ import { useState } from 'react';
 import type { SessionInfo } from '@cc-hub/shared';
 import { api, errText, isConflict, repoApi, sessionApi } from '../api';
 import { SORT_LABEL, type SortMode, groupSessions, isFinished, useHub } from '../store';
-import { STATUS_ICON, STATUS_LABEL, projectLabel } from '../util';
+import { MOD, STATUS_ICON, STATUS_LABEL, projectLabel } from '../util';
 import { needsRelease, useSessionWorktree } from '../repo';
 import { fmtTokens, projectKey } from '../project';
 import { CtxMeter, WhereTag, toolText } from './common';
@@ -129,8 +129,9 @@ function SessionRow({
           </span>
         )}
         {index < 9 && (
-          <kbd className="srow-key" title={`Ctrl+${index + 1} で開く`}>
-            Ctrl+{index + 1}
+          <kbd className="srow-key" title={`${MOD}${index + 1} で開く`}>
+            {MOD}
+            {index + 1}
           </kbd>
         )}
       </span>

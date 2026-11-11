@@ -16,7 +16,7 @@ import {
 } from '../composer';
 import { SOURCE_LABEL, useSkills } from '../ext';
 import { addSent } from '../sentMessages';
-import { readLocal, writeLocal } from '../util';
+import { MOD, readLocal, writeLocal } from '../util';
 
 /** 1 ファイルの上限(デーモンへの JSON で送るので大きすぎるものは断る) */
 const MAX_BYTES = 15 * 1024 * 1024;
@@ -519,7 +519,7 @@ export function Composer({
             )}
             {toolbarExtra}
             <span className="spacer" />
-            {desktop && <span className="cmp-hint">Ctrl+Enter で送信 · Enter で改行</span>}
+            {desktop && <span className="cmp-hint">{MOD}Enter で送信 · Enter で改行</span>}
             {!compact && sendBtn}
           </div>
         )}

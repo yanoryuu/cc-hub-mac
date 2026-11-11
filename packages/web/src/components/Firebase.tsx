@@ -60,7 +60,7 @@ function InfoError({ error }: { error: string }) {
         <span className="dres-err">{error}</span>
         {login && (
           <>
-            <span className="small">CC Hub を動かしている PC の PowerShell で次を実行し、ブラウザでログインしてから「再読み込み」を押してください。</span>
+            <span className="small">CC Hub を動かしている Mac のターミナルで次を実行し、ブラウザでログインしてから「再読み込み」を押してください。</span>
             <pre className="mcp-cmd mono">firebase login</pre>
           </>
         )}
@@ -913,7 +913,7 @@ export function FirebaseMcpSection() {
         </button>
       </div>
       <p className="small muted">
-        登録するには PowerShell で次のコマンドを実行してください(先に <span className="mono">firebase login</span> を済ませておきます)。--apply
+        登録するには ターミナルで次のコマンドを実行してください(先に <span className="mono">firebase login</span> を済ませておきます)。--apply
         なしで実行すると、登録内容の確認だけができます。
       </p>
       <pre className="mcp-cmd mono">{`node C:\\Users\\yanor\\cc-hub\\integrations\\mcp\\install-firebase.js --apply`}</pre>

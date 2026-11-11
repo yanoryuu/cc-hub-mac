@@ -5,7 +5,7 @@ import { errText, isConflict } from '../api';
 import { useHub } from '../store';
 import { CHANGE_LABEL, changeCount, isWorking, projectApi } from '../project';
 import { fmtAgo } from '../pr';
-import { fmtDate, useNow } from '../util';
+import { MOD, fmtDate, useNow } from '../util';
 import { ConfirmModal, Spinner } from './RepoCommon';
 import { StatusBadge } from './common';
 import { FilePreview } from './ProjectArtifacts';
@@ -398,7 +398,7 @@ function TargetGit({
                     : 'コミットするファイルをステージしてください'}
               </span>
               <span className="spacer" />
-              <kbd className="hide-mobile">Ctrl+Enter</kbd>
+              <kbd className="hide-mobile">{MOD}Enter</kbd>
               <button className="btn primary" disabled={!canCommit} onClick={() => void commit()}>
                 {busy === 'commit' ? <Spinner /> : null} コミット{commitCount ? `(${commitCount})` : ''}
               </button>

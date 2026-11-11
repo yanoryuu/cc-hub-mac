@@ -13,6 +13,17 @@ export const STATUS_LABEL: Record<SessionStatus, string> = {
 };
 
 /** 状態のアイコン(色が見分けにくくても形で分かるように、ラベルと必ず一緒に出す) */
+// ---- キーボード: macOS は ⌘、それ以外は Ctrl
+export const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+/** ショートカットの修飾キーの表示(⌘ / Ctrl+) */
+export const MOD = IS_MAC ? '⌘' : 'Ctrl+';
+export const SHIFT = IS_MAC ? '⇧' : 'Shift+';
+export const ALT = IS_MAC ? '⌥' : 'Alt+';
+/** ショートカットの修飾キーだけが押されているか(macOS は ⌘、それ以外は Ctrl) */
+export function isMod(e: { ctrlKey: boolean; metaKey: boolean }): boolean {
+  return IS_MAC ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
+}
+
 export const STATUS_ICON: Record<SessionStatus, string> = {
   starting: '◌',
   running: '●',

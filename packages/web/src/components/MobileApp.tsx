@@ -166,7 +166,7 @@ function SessionDetailView() {
               {session.name}
               <span className={`m-sub st-${session.status}`}>
                 <span aria-hidden="true">{STATUS_ICON[session.status]}</span> {STATUS_LABEL[session.status]}
-                {!session.managed && (session.handedOff ? ' · PowerShell で実行中' : ' · 外部セッション')}
+                {!session.managed && (session.handedOff ? ' · ターミナルで実行中' : ' · 外部セッション')}
               </span>
             </span>
             {fontCtl}
@@ -203,7 +203,7 @@ const MORE_ITEMS: { v: Exclude<MoreView, 'menu'>; label: string; ico: string; de
   { v: 'skills', label: 'スキル', ico: '✦', desc: '使えるスキルとコマンドの一覧。タップで入力欄に入れる' },
   { v: 'mcp', label: 'MCP の接続状況', ico: '⛁', desc: 'MCP サーバーがつながっているか' },
   { v: 'game', label: 'ゲームキャプチャ', ico: '▶', desc: 'PC のウィンドウを見ながら操作' },
-  { v: 'shell', label: 'PowerShell', ico: '›_', desc: 'PC の PowerShell を開いてコマンドを打つ(npm run auth など)' },
+  { v: 'shell', label: '端末', ico: '›_', desc: 'Mac のシェルを開いてコマンドを打つ(npm run auth など)' },
   { v: 'settings', label: '設定', ico: '⚙', desc: '通知(Windows / Discord)・アップロード先のサーバー・Claude との連携' },
 ];
 
@@ -251,7 +251,7 @@ function MoreScreen() {
               <button className="icon-btn back" onClick={() => openMore('menu')} aria-label="その他へ戻る">
                 ‹
               </button>
-              <span className="m-title">PowerShell</span>
+              <span className="m-title">端末</span>
             </div>
           }
         />

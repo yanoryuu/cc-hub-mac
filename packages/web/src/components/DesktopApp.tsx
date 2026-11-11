@@ -26,6 +26,8 @@ import { ProjectScreen } from './Project';
 import { HomeScreen } from './Home';
 import { HistoryView } from './History';
 import { TOP_ORDER } from './TopBar';
+import { Overview } from './Overview';
+import { isMod } from '../util';
 
 function ApprovalDrawer() {
   const open = useHub((s) => s.approvalDrawer);
@@ -131,7 +133,7 @@ function SideNav() {
       {item('skills', 'スキル', '✦')}
       {item('mcp', 'MCP', '⛁')}
       {item('game', 'ゲーム', '▶')}
-      {item('shell', 'PowerShell', '›_')}
+      {item('shell', '端末', '›_')}
     </nav>
   );
 }
@@ -146,7 +148,7 @@ export function DesktopApp() {
   const repoRoute = useHub((s) => s.repoRoute);
   const scopeCwd = useScopeCwd();
 
-  // Ctrl+1..9: セッション切替(一覧に表示している順) / Ctrl+Shift+A: 承認キュー
+  // ⌘1..9(Windows は Ctrl): セッション切替(一覧に表示している順) / ⌘⇧A: 承認キュー
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // Alt+1〜4: 上部の大分類(プロジェクト / セッション / 履歴 / PR)
@@ -159,7 +161,15 @@ export function DesktopApp() {
         }
         return;
       }
-      if (!e.ctrlKey || e.altKey || e.metaKey) return;
+      if (!isMod(e) || e.altKey) return;
+      // ⌘0: 全体 ⇄ 選んでいるセッション
+      if (e.key === '0' && !e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        const st = useHub.getState();
+        st.setDeskView(st.deskView === 'overview' ? 'session' : 'overview');
+        return;
+      }
       if (/^[1-9]$/.test(e.key) && !e.shiftKey) {
         const st = useHub.getState();
         const s = orderedSessions(st.sessions, st.repos, st.worktrees, st.sortOpts)[parseInt(e.key, 10) - 1];
@@ -198,7 +208,9 @@ export function DesktopApp() {
           <SideNav />
         </aside>
         <main className="center">
-          {view === 'game' ? (
+          {view === 'overview' ? (
+            <Overview />
+          ) : view === 'game' ? (
             <GameView />
           ) : view === 'shell' ? (
             <ShellScreen />

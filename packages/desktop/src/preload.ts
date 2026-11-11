@@ -14,7 +14,9 @@ const IPC_PICK_FOLDER = 'hub:pick-folder';
 
 contextBridge.exposeInMainWorld('ccHub', {
   isDesktop: true,
-  /** Windows のフォルダ選択ダイアログ。キャンセルなら null */
+  /** 'darwin' なら画面がタイトルバーとサイドバーの透過を使う */
+  platform: process.platform,
+  /** フォルダ選択ダイアログ。キャンセルなら null */
   async pickFolder(): Promise<string | null> {
     const r: unknown = await ipcRenderer.invoke(IPC_PICK_FOLDER);
     return typeof r === 'string' && r ? r : null;

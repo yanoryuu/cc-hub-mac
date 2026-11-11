@@ -2,7 +2,7 @@
 import type { RateWindow } from '@cc-hub/shared';
 import { TOP_VIEW_LABEL, type TopView, isFinished, useHub } from '../store';
 import { needsAttention, usePrGroups } from '../pr';
-import { fmtUntil, useNow } from '../util';
+import { ALT, MOD, SHIFT, fmtUntil, useNow } from '../util';
 import { useApprovalCount } from './Approval';
 import { McpSummary } from './Mcp';
 
@@ -92,7 +92,7 @@ function TopNav() {
             className={`topnav-btn ${on ? 'on' : ''}`}
             aria-current={on ? 'page' : undefined}
             onClick={() => setTop(t)}
-            title={`${TOP_VIEW_LABEL[t]}(Alt+${i + 1})`}
+            title={`${TOP_VIEW_LABEL[t]}(${ALT}${i + 1})`}
           >
             {TOP_VIEW_LABEL[t]}
             {badge(t)}
@@ -100,6 +100,28 @@ function TopNav() {
         );
       })}
     </nav>
+  );
+}
+
+/** フォーカス(1 セッション)/ 全体(タイル)の切り替え(⌘0) */
+function ViewToggle() {
+  const view = useHub((s) => s.deskView);
+  const setDeskView = useHub((s) => s.setDeskView);
+  if (view !== 'session' && view !== 'overview') return null;
+  return (
+    <div className="topnav view-toggle" role="group" aria-label="表示の切り替え">
+      <button className={`topnav-btn ${view === 'session' ? 'on' : ''}`} aria-pressed={view === 'session'} onClick={() => setDeskView('session')}>
+        フォーカス
+      </button>
+      <button
+        className={`topnav-btn ${view === 'overview' ? 'on' : ''}`}
+        aria-pressed={view === 'overview'}
+        onClick={() => setDeskView('overview')}
+        title={`全体(${MOD}0)`}
+      >
+        全体 <kbd>{`${MOD}0`}</kbd>
+      </button>
+    </div>
   );
 }
 
@@ -118,13 +140,14 @@ export function TopBar() {
         CC Hub
       </div>
       <TopNav />
+      <ViewToggle />
       <UsageMeters />
       <div className="spacer" />
       <McpSummary />
       <button
         className={`btn appr-btn ${approvals > 0 ? 'has' : ''}`}
         onClick={() => setDrawer(!drawer)}
-        title="承認キュー(Ctrl+Shift+A)"
+        title={`承認キュー(${MOD}${SHIFT}A)`}
       >
         承認待ち <span className="count">{approvals}</span>
       </button>

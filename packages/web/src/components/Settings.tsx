@@ -1261,7 +1261,7 @@ function McpSection() {
           </button>
         </div>
         <p className="small muted">
-          登録されていないときは、PowerShell で次のコマンドを実行してください。トークンは自動で読み込まれます(%APPDATA%\cc-hub\mcp-token)。
+          登録されていないときは、ターミナルで次のコマンドを実行してください。トークンは自動で読み込まれます(~/Library/Application Support/cc-hub/mcp-token)。
           まず --apply なしで実行すると、登録内容の確認だけができます。
         </p>
         <pre className="mcp-cmd mono">{`node C:\\Users\\yanor\\cc-hub\\integrations\\mcp\\install.js --apply`}</pre>

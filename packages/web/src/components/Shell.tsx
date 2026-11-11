@@ -1,4 +1,4 @@
-// PowerShell 画面: CC Hub から PowerShell を開いて、ほかの端末(スマホ・Mac)からコマンドを打つ。Claude は動かさない。
+// ターミナル 画面: CC Hub から ターミナルを開いて、ほかの端末(スマホ・Mac)からコマンドを打つ。Claude は動かさない。
 // ターミナル表示は TerminalView(入力先を shellApi に差し替え)。スマホでも打てるように下にコマンド欄とキーを置く。
 import { useEffect, useRef, useState } from 'react';
 import type { ShellInfo } from '@cc-hub/shared';
@@ -30,7 +30,7 @@ function NewShellForm({ onOpened, compact }: { onOpened: (s: ShellInfo) => void;
       const r = await shellApi.start(dir.trim() || undefined);
       if (r.shell) onOpened(r.shell);
     } catch (e) {
-      setErr(errText(e, 'PowerShell を開けませんでした'));
+      setErr(errText(e, '端末を開けませんでした'));
     } finally {
       setBusy(false);
     }
@@ -54,7 +54,7 @@ function NewShellForm({ onOpened, compact }: { onOpened: (s: ShellInfo) => void;
         autoCorrect="off"
       />
       <button className="btn primary" disabled={busy} type="submit">
-        {busy ? '開いています…' : '＋ PowerShell を開く'}
+        {busy ? '開いています…' : '＋ 端末を開く'}
       </button>
       {scopeCwd && (
         <button type="button" className="btn ghost sm" disabled={busy} onClick={() => void open(scopeCwd)} title={scopeCwd}>
@@ -94,7 +94,7 @@ function CommandBar({ shell, termRef }: { shell: ShellInfo; termRef: React.RefOb
           className="mono"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder={shell.alive ? 'コマンドを入力して Enter(ターミナルを直接タップしても打てます)' : 'PowerShell は終了しています'}
+          placeholder={shell.alive ? 'コマンドを入力して Enter(ターミナルを直接タップしても打てます)' : '端末は終了しています'}
           aria-label="コマンド"
           disabled={!shell.alive}
           spellCheck={false}
@@ -118,7 +118,7 @@ export function ShellScreen({ mobile = false, head }: { mobile?: boolean; head?:
   const termRef = useRef<TerminalHandle>(null);
   const active = (activeId && shells[activeId]) || list[list.length - 1] || null;
 
-  // 選んでいた PowerShell が閉じられたら選択を外す(最後に開いたものを出す)
+  // 選んでいた ターミナルが閉じられたら選択を外す(最後に開いたものを出す)
   useEffect(() => {
     if (activeId && !shells[activeId]) setActiveId(null);
   }, [activeId, shells]);
@@ -135,7 +135,7 @@ export function ShellScreen({ mobile = false, head }: { mobile?: boolean; head?:
   return (
     <div className={`shell-screen ${mobile ? 'mobile' : ''}`}>
       {head}
-      <div className="shell-tabs" role="tablist" aria-label="開いている PowerShell">
+      <div className="shell-tabs" role="tablist" aria-label="開いている端末">
         {list.map((s) => (
           <span key={s.id} className={`shell-tab ${active?.id === s.id ? 'on' : ''}`}>
             <button role="tab" aria-selected={active?.id === s.id} onClick={() => setActiveId(s.id)} title={s.cwd}>
@@ -167,14 +167,14 @@ export function ShellScreen({ mobile = false, head }: { mobile?: boolean; head?:
           <TerminalView key={active.id} ref={termRef} sessionId={active.id} fontSize={fontSize} interactive={active.alive} io={shellApi} />
           <CommandBar shell={active} termRef={termRef} />
           <details className="shell-more">
-            <summary>別の PowerShell を開く</summary>
+            <summary>別の端末を開く</summary>
             <NewShellForm compact onOpened={(s) => setActiveId(s.id)} />
           </details>
         </>
       ) : (
         <div className="shell-empty">
           <p>
-            この PC の PowerShell を開いて、スマホや別の PC からコマンドを打てます(Claude は動きません)。
+            この Mac のターミナル(シェル)を開いて、スマホや別の PC からコマンドを打てます(Claude は動きません)。
             <br />
             CC Hub を再起動すると閉じます。
           </p>

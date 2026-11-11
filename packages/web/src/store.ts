@@ -12,7 +12,7 @@ export const TOP_VIEW_LABEL: Record<TopView, string> = { projects: 'プロジェ
 /** モバイル「その他」タブの中身 */
 export type MoreView = 'menu' | 'history' | 'skills' | 'mcp' | 'game' | 'settings' | 'shell';
 /** デスクトップ中央の表示 */
-export type DeskView = 'home' | 'history' | 'session' | 'game' | 'repos' | 'prs' | 'skills' | 'mcp' | 'project' | 'settings' | 'shell';
+export type DeskView = 'home' | 'history' | 'session' | 'overview' | 'game' | 'repos' | 'prs' | 'skills' | 'mcp' | 'project' | 'settings' | 'shell';
 /** 設定画面のセクション */
 export type SettingsTab = 'notify' | 'servers' | 'mcp' | 'modes' | 'hub';
 
@@ -21,7 +21,7 @@ export function topOf(v: DeskView): TopView | null {
   if (v === 'home' || v === 'project' || v === 'repos') return 'projects';
   if (v === 'prs') return 'prs';
   if (v === 'history') return 'history';
-  if (v === 'session') return 'sessions';
+  if (v === 'session' || v === 'overview') return 'sessions';
   return null;
 }
 /** デスクトップ右パネルのタブ */

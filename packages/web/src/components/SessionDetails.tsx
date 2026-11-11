@@ -34,7 +34,7 @@ export function SessionControls({ session, onDone }: { session: SessionInfo; onD
   };
 
   const stopped = session.status === 'stopped';
-  // PowerShell はこの PC にウィンドウを開くので、デスクトップ(PC の画面)でだけ出す
+  // ターミナルはこの PC にウィンドウを開くので、デスクトップ(PC の画面)でだけ出す
   const desktop = useMediaQuery('(min-width: 900px)');
 
   if (renaming) {

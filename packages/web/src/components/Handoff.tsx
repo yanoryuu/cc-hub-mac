@@ -1,4 +1,4 @@
-// セッションの受け渡し: 「PowerShell で開く」(CC Hub → PowerShell)と「CC Hub で引き継ぐ / CC Hub に戻す」(外部 → CC Hub)
+// セッションの受け渡し: 「ターミナルで開く」(CC Hub → ターミナル)と「CC Hub で引き継ぐ / CC Hub に戻す」(外部 → CC Hub)
 import { useState } from 'react';
 import type { SessionInfo } from '@cc-hub/shared';
 import { errText, isConflict, sessionApi } from '../api';
@@ -53,7 +53,7 @@ export type TakeoverCtl = ReturnType<typeof useTakeover>;
 /** 相手側が実行中(409)のときの確認 */
 export function ConflictDialog({ ctl, session }: { ctl: TakeoverCtl; session: SessionInfo }) {
   if (!ctl.conflict) return null;
-  const where = session.handedOff ? 'PowerShell のウィンドウ' : '元のウィンドウ(VS Code やターミナル)';
+  const where = session.handedOff ? 'ターミナルのウィンドウ' : '元のウィンドウ(VS Code やターミナル)';
   return (
     <ConfirmModal
       title="相手側でまだ動いています"
@@ -75,7 +75,7 @@ export function ConflictDialog({ ctl, session }: { ctl: TakeoverCtl; session: Se
   );
 }
 
-/** 外部セッション / PowerShell に移したセッションの説明と「引き継ぐ」ボタン(セッション画面の中央に出す) */
+/** 外部セッション / ターミナルに移したセッションの説明と「引き継ぐ」ボタン(セッション画面の中央に出す) */
 export function TakeoverPanel({ session, ctl }: { session: SessionInfo; ctl: TakeoverCtl }) {
   const now = useNow(1000);
   const pending = usePendingSend(session.id);
@@ -88,12 +88,12 @@ export function TakeoverPanel({ session, ctl }: { session: SessionInfo; ctl: Tak
             {ps ? '❯_' : '⇄'}
           </span>
           <div className="handoff-text">
-            <h3 id={`ho-${session.id}`}>{ps ? 'PowerShell のウィンドウで実行中です' : 'CC Hub の外で動いているセッションです'}</h3>
+            <h3 id={`ho-${session.id}`}>{ps ? 'ターミナルのウィンドウで実行中です' : 'CC Hub の外で動いているセッションです'}</h3>
             {ps ? (
               <p>
-                このセッションは PowerShell の新しいウィンドウに移しました。作業ツリーはそのまま保持しています。
+                このセッションは ターミナルの新しいウィンドウに移しました。作業ツリーはそのまま保持しています。
                 <br />
-                「CC Hub に戻す」と、PowerShell 側の続きをここで再開します(戻したら PowerShell のウィンドウは閉じてください)。
+                「CC Hub に戻す」と、ターミナル 側の続きをここで再開します(戻したら ターミナルのウィンドウは閉じてください)。
               </p>
             ) : (
               <p>
@@ -157,7 +157,7 @@ export function TakeoverButton({ session, className = 'btn' }: { session: Sessio
   );
 }
 
-/** 「PowerShell で開く」ボタン + 確認ダイアログ(デスクトップのみ: PC にウィンドウを開くため) */
+/** 「ターミナルで開く」ボタン + 確認ダイアログ(デスクトップのみ: PC にウィンドウを開くため) */
 export function PowerShellButton({ session, className = 'btn' }: { session: SessionInfo; className?: string }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -170,7 +170,7 @@ export function PowerShellButton({ session, className = 'btn' }: { session: Sess
       await sessionApi.openTerminal(session.id);
       setOpen(false);
     } catch (e) {
-      setErr(errText(e, 'PowerShell で開けませんでした'));
+      setErr(errText(e, 'ターミナルで開けませんでした'));
     } finally {
       setBusy(false);
     }
@@ -184,21 +184,21 @@ export function PowerShellButton({ session, className = 'btn' }: { session: Sess
           setErr(null);
           setOpen(true);
         }}
-        title="このセッションを PowerShell の新しいウィンドウで続ける"
+        title="このセッションを ターミナルの新しいウィンドウで続ける"
       >
         <span aria-hidden="true" className="mono">
           ❯_
         </span>{' '}
-        PowerShell で開く
+        ターミナルで開く
       </button>
       {open && (
-        <ConfirmModal title="PowerShell で開く" confirmLabel="PowerShell で開く" busy={busy} error={err} onConfirm={go} onClose={() => setOpen(false)}>
-          <p>CC Hub 側のこのセッションを止めて、PowerShell の新しいウィンドウで続きを開きます。作業ツリーはそのまま保持されます。</p>
+        <ConfirmModal title="ターミナルで開く" confirmLabel="ターミナルで開く" busy={busy} error={err} onConfirm={go} onClose={() => setOpen(false)}>
+          <p>CC Hub 側のこのセッションを止めて、ターミナルの新しいウィンドウで続きを開きます。作業ツリーはそのまま保持されます。</p>
           <p className="hint">
             {session.status === 'running' || session.status === 'awaiting_approval'
               ? '実行中の処理は中断されます。'
               : ''}
-            PowerShell での作業が終わったら、「CC Hub に戻す」でまたここから操作できます。
+            ターミナルでの作業が終わったら、「CC Hub に戻す」でまたここから操作できます。
           </p>
         </ConfirmModal>
       )}
