@@ -62,12 +62,15 @@ function main() {
     console.error(`マーケットプレイスが見つかりません: ${path.join(ROOT, '.claude-plugin', 'marketplace.json')}`);
     process.exit(1);
   }
-  // 既に追加・インストール済みならエラーになるが、最後の一覧で確かめる
+  // 前に別の場所(古いアプリ・消したビルド用フォルダ)から登録したマーケットプレイスが残っていると、
+  // add はその場所のままにして、プラグインが「cache-miss」で読み込めなくなる。いったん外してからこの場所で登録し直す
+  run(claude, ['plugin', 'marketplace', 'remove', 'cc-hub']);
   run(claude, ['plugin', 'marketplace', 'add', ROOT]);
   run(claude, ['plugin', 'install', PLUGIN, ...CONFIG.flatMap((c) => ['--config', c])]);
   if (!APPLY) return;
   const list = run(claude, ['plugin', 'list']);
-  const ok = list.status === 0 && list.out.includes(PLUGIN) && !/disabled/i.test(list.out.split(PLUGIN)[1]?.split('❯')[0] ?? '');
+  const entry = list.out.split(PLUGIN)[1]?.split('❯')[0] ?? '';
+  const ok = list.status === 0 && list.out.includes(PLUGIN) && !/disabled|failed to load/i.test(entry);
   console.log(ok ? `${PLUGIN} を入れました` : `${PLUGIN} を入れられませんでした`);
   process.exit(ok ? 0 : 1);
 }

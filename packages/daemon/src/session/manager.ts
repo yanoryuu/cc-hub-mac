@@ -50,7 +50,7 @@ import { findTranscript } from '../history';
 import { HttpError, activeBackgroundTasks, clampInt, taskText, toolTarget } from '../util';
 import { TranscriptTail, combineTokens } from './tokens';
 import { PtyHost } from './pty-host';
-import { approvalKeys, detectApproval, stabilizeApproval, type DetectedApproval } from './approval';
+import { approvalKeys, detectApproval, detectInputPrompt, stabilizeApproval, type DetectedApproval } from './approval';
 import { buildTerminalArgv, launchTerminal, terminalEnv, type TerminalSpec } from './terminal';
 import { expandCommand, normalizeLaunchers, removeLauncher, spawnDetached, unityMessage, upsertLauncher } from './launchers';
 import { launchUnity } from '../unity/launcher';
@@ -1220,8 +1220,11 @@ export class SessionManager {
   private runDetect(e: Entry): void {
     if (!e.host?.alive) return;
     // 画面全体を見る(行数の多い画面では、ダイアログが末尾 25 行より上に描かれることがある)
-    const raw = detectApproval(e.host.tailLines(Math.max(25, e.host.rows)), e.info.cwd);
+    const lines = e.host.tailLines(Math.max(25, e.host.rows));
+    const raw = detectApproval(lines, e.info.cwd);
     if (raw && this.autoTrust(e, raw)) return;
+    // 保険: 起動の知らせ(SessionStart)が届かなくても、入力欄が出ていれば起動は終わっている
+    if (!raw && e.info.status === 'starting' && detectInputPrompt(lines)) this.setStatus(e, 'awaiting_input', true);
     // 描き直しの途中や、端末が低くてダイアログの一部しか見えないときに、選択肢が減ったり消えたりして見えないようにする
     const st = stabilizeApproval(e.detected, raw, Date.now(), e.detectMissSince, e.approvalAnswered);
     e.detectMissSince = st.missSince;

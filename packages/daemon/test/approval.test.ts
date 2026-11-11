@@ -1,7 +1,7 @@
 // 承認検出のテスト(実際の画面から採ったフィクスチャ)。
 // 実行: npm run test -w @cc-hub/daemon
 import assert from 'node:assert/strict';
-import { approvalKeys, detectApproval } from '../src/session/approval';
+import { approvalKeys, detectApproval, detectInputPrompt } from '../src/session/approval';
 
 const pad = (n: number) => Array.from({ length: n }, () => '');
 let passed = 0;
@@ -116,6 +116,17 @@ const answeredLater = [
 
 test('ヒントも質問文もない「❯ 1.」の残骸は検出しない', () => {
   assert.equal(detectApproval(answeredLater, 'C:\\x'), null);
+});
+
+test('入力欄: 罫線 2 本に挟まれた ❯ を見つける(起動中から入力待ちへの保険)', () => {
+  const rule = '─'.repeat(40);
+  assert.equal(detectInputPrompt(['✻ done', `${rule} name ─`, '❯ ', rule, '⏵⏵ auto mode on']), true);
+  assert.equal(detectInputPrompt([rule, '❯ 複数行の', '  入力', rule]), true);
+  // 起動中の画面・承認の選択肢(❯ 1. Yes)は入力欄ではない
+  assert.equal(detectInputPrompt(['Do you want to proceed?', '❯ 1. Yes', '  2. No']), false);
+  assert.equal(detectInputPrompt(['❯ ', rule]), false);
+  assert.equal(detectInputPrompt([rule, '❯ 1. Yes', '  2. No']), false);
+  assert.equal(detectInputPrompt([rule, '❯ 1. Yes', '  2. No', rule]), false);
 });
 
 console.log(`\n${passed} passed`);

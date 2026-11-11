@@ -217,3 +217,20 @@ export function stabilizeApproval(
   }
   return { value: next, missSince: null, recheckMs: null };
 }
+
+/** 横線(Claude Code の入力欄の上下の罫線)。名前などが重なっていても ─ が 10 個以上続けば罫線とみなす */
+const RULE_RE = /─{10,}/;
+
+/**
+ * 画面に Claude Code の入力欄(罫線 2 本に挟まれた「❯」の行)が出ているか。
+ * 起動の知らせ(SessionStart)を取りこぼしたときに「起動中」から「入力待ち」へ進める保険に使う(純粋関数)
+ */
+export function detectInputPrompt(lines: string[]): boolean {
+  for (let i = 1; i < lines.length; i++) {
+    // 「❯ 1. Yes」のような選択肢の行は入力欄ではない
+    if (!/^\s*❯(\s|$)/.test(lines[i]) || /^\s*❯\s*\d+\./.test(lines[i]) || !RULE_RE.test(lines[i - 1])) continue;
+    // 入力が複数行になっていても、下の罫線は数行以内にある
+    for (let j = i + 1; j < Math.min(lines.length, i + 8); j++) if (RULE_RE.test(lines[j])) return true;
+  }
+  return false;
+}

@@ -169,8 +169,21 @@ const setupPaths = (): SetupPaths => ({ hubRoot, node: nodeExe, dataDir, version
 let settingUp = false;
 
 /** 初回(とバージョンが変わったとき)に Claude Code へつなぐ。前提が足りなければ案内する */
+/**
+ * macOS: /Applications(か ~/Applications)の外で動いているアプリ(ビルド用フォルダ・dmg の中など)では連携を設定しない。
+ * Claude Code に登録する mod の取得元がこのアプリの場所になるので、あとで消える場所から登録すると mod が読み込めなくなる(cache-miss)
+ */
+function installedLocation(): boolean {
+  if (!IS_MAC) return true;
+  return /^(\/Applications|\/Users\/[^/]+\/Applications)\//.test(process.execPath);
+}
+
 async function firstRunSetup(): Promise<void> {
   if (settingUp || setupDone(setupPaths())) return;
+  if (!installedLocation()) {
+    fs.appendFileSync(logPath, `[desktop] /Applications の外で動いているので、Claude Code との連携は設定しません: ${process.execPath}\n`);
+    return;
+  }
   settingUp = true;
   try {
     const r = runSetup(setupPaths());
