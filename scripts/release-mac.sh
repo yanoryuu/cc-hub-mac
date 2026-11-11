@@ -52,14 +52,18 @@ cask "cc-hub" do
   homepage "https://github.com/$REPO"
 
   depends_on arch: :arm64
-  depends_on macos: ">= :big_sur"
+  depends_on :macos
 
   app "CC Hub.app"
 
-  # 署名していないので、ダウンロードで付く quarantine を外す(外さないと初回の起動で止められる)
-  postflight do
-    system_command "/usr/bin/xattr",
-                   args: ["-dr", "com.apple.quarantine", "#{appdir}/CC Hub.app"]
+  # 署名していないので、ダウンロードで付く quarantine を外す(外さないと初回の起動で止められる)。
+  # Homebrew 6 の install steps は引数を展開しないので、既定の /Applications を前提にする(--appdir を変えた場合は手で外す)
+  postflight_steps do
+    run "/usr/bin/xattr",
+        args:           ["-dr", "com.apple.quarantine", "/Applications/CC Hub.app"],
+        must_succeed:   false,
+        writable_paths: ["CC Hub.app"],
+        writable_base:  :appdir
   end
 
   # アプリを閉じ、同梱の node で動いているデーモンも止める
