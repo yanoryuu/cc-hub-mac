@@ -172,3 +172,19 @@ export async function freeDiskGB(p: string): Promise<number | null> {
     return null;
   }
 }
+
+/**
+ * フォルダの中身をそっくり写す(Unity の Library の複製用)。失敗したらエラー文、成功なら null。
+ * - Windows: robocopy /MIR(0〜7 が成功)
+ * - macOS: 写し先が無ければ APFS の複製(cp -c。ほぼ一瞬で容量も増えない)、あれば rsync で差分を合わせる
+ */
+export async function mirrorDir(src: string, dst: string, o: RunOptions = {}): Promise<string | null> {
+  if (IS_WIN) {
+    const r = await run('robocopy', [src, dst, '/MIR', '/NFL', '/NDL', '/NJH', '/NJS', '/R:1', '/W:1'], o);
+    return r.code < 0 || r.code >= 8 ? `robocopy に失敗 (code ${r.code}): ${tail(r)}` : null;
+  }
+  const r = fs.existsSync(dst)
+    ? await run('/usr/bin/rsync', ['-a', '--delete', `${src}/`, `${dst}/`], o)
+    : await run('/bin/cp', ['-Rcp', src, dst], o);
+  return r.code === 0 ? null : `コピーに失敗 (code ${r.code}): ${tail(r)}`;
+}

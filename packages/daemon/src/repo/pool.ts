@@ -15,7 +15,7 @@ import { bus } from '../bus';
 import type { HubConfig } from '../config';
 import type { Store, WorktreeRow } from '../store/db';
 import { HttpError } from '../util';
-import { Mutex, Semaphore, freeDiskGB, git, gitOk, normPath, run, tail } from './exec';
+import { Mutex, Semaphore, freeDiskGB, git, gitOk, mirrorDir, normPath, run, tail } from './exec';
 import { installCommand, lockHash } from './kind';
 import { findLockers, lockerMessage } from './lockers';
 import { DIRTY_MSG, IN_USE_DELETE_MSG, IN_USE_REBASE_MSG, OCCUPIED_MSG, classifyRebase, computeInUse, parseConflictFiles, parseCount } from './worktree-ops';
@@ -520,12 +520,8 @@ export class WorktreePool {
         if (repo.kind === 'unity' && src) {
           if (!fs.existsSync(src)) throw new Error(`Library のコピー元がありません: ${src}`);
           this.set(w, { progress: 'Library をコピー中' });
-          const r = await run('robocopy', [src, path.join(w.path, 'Library'), '/MIR', '/NFL', '/NDL', '/NJH', '/NJS', '/R:1', '/W:1'], {
-            timeout: ROBOCOPY_TIMEOUT,
-            logFile,
-          });
-          // robocopy は 0〜7 が成功(8 以上が失敗)
-          if (r.code < 0 || r.code >= 8) throw new Error(`robocopy に失敗 (code ${r.code}): ${tail(r)}`);
+          const err = await mirrorDir(src, path.join(w.path, 'Library'), { timeout: ROBOCOPY_TIMEOUT, logFile });
+          if (err) throw new Error(`Library の${err}`);
         }
       });
     } catch (e) {
@@ -885,8 +881,8 @@ export class WorktreePool {
       const src = repo.seedLibraryFrom;
       if (repo.kind === 'unity' && src && fs.existsSync(src) && !fs.existsSync(path.join(p, 'Library'))) {
         set({ phase: 'copying', progress: 'Library をコピー中(初回だけ。数分かかります)' });
-        const r = await run('robocopy', [src, path.join(p, 'Library'), '/MIR', '/NFL', '/NDL', '/NJH', '/NJS', '/R:1', '/W:1'], { timeout: ROBOCOPY_TIMEOUT, logFile });
-        if (r.code < 0 || r.code >= 8) throw new Error(`Library のコピーに失敗 (robocopy code ${r.code}): ${tail(r)}`);
+        const err = await mirrorDir(src, path.join(p, 'Library'), { timeout: ROBOCOPY_TIMEOUT, logFile });
+        if (err) throw new Error(`Library の${err}`);
       }
       const done = set({ phase: 'ready', progress: null, updatedAt: Date.now(), pulled, ...(await headInfo(p)) });
       console.log(`[pool] ${repo.id}: ${repo.defaultBranch} を最新にしました(確認用 ${done.head} ${done.subject ?? ''}、${pulled} 件取り込み)`);
