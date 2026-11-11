@@ -2,28 +2,58 @@
 
 複数の Claude Code セッションを 1 つの画面でまとめて扱うアプリ [CC Hub](https://github.com/yanoryuu/cc-hub)(Windows 用)の macOS 版です。
 
-## インストール(macOS)
+## 必要なもの
 
-1. 先に次の 2 つを入れておきます。
-   - **Claude Code**: ターミナルで `curl -fsSL https://claude.ai/install.sh | bash` を実行し、一度 `claude` を起動してログインします。
-   - **Git**: `xcode-select --install`(または `brew install git`)。
-   - (任意)PR の機能を使うなら [GitHub CLI](https://cli.github.com/) を入れて `gh auth login` しておきます。
-2. Homebrew で入れます(Apple Silicon の Mac):
+Apple Silicon の Mac(M1 以降)で動きます。ターミナルで次を順に実行してください。
 
-   ```
-   brew tap yanoryuu/tap
-   brew trust yanoryuu/tap   # Homebrew 6 以降: 公式以外の tap は一度だけ信頼の登録が要る
-   brew install --cask yanoryuu/tap/cc-hub
-   ```
+```sh
+# 1. Homebrew(まだ入っていなければ)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-   更新は `brew upgrade --cask cc-hub`、削除は `brew uninstall --cask cc-hub`(設定ごと消すなら `--zap`)。
+# 2. Claude Code(入れたら一度 claude を起動してログインする)
+curl -fsSL https://claude.ai/install.sh | bash
+claude
 
-   Homebrew を使わない場合は、[Releases](https://github.com/yanoryuu/cc-hub-mac/releases) の `CC-Hub-<バージョン>-arm64.dmg` を開き、
-   `CC Hub.app` を「アプリケーション」へドラッグします。署名していないため、初回は Finder で右クリック →「開く」で起動してください
-   (または `xattr -dr com.apple.quarantine "/Applications/CC Hub.app"`)。
-3. 起動すると Claude Code との連携(mod「cc-hub」・MCP「cc-hub」・スキル `hub-commander`)を自動で設定します。
+# 3. Git と GitHub CLI(GitHub のリポジトリの取り込み・PR の機能に使う)
+brew install git gh
+gh auth login
+```
 
-データは `~/Library/Application Support/cc-hub` に置きます(設定の記録は `setup.log`)。
+使うプロジェクトに合わせて、必要なら次も入れます。
+
+| 使うもの | 入れ方 |
+|---|---|
+| Git LFS(大きなファイルを LFS で管理しているリポジトリ。Unity のプロジェクトなど) | `brew install git-lfs && git lfs install` |
+| Unity のプロジェクト | [Unity Hub](https://unity.com/download) と、プロジェクトのバージョンのエディタ |
+| Firebase へのデプロイ | `brew install firebase-cli && firebase login` |
+
+## インストール
+
+```sh
+brew tap yanoryuu/tap
+brew trust yanoryuu/tap   # Homebrew 6 以降: 公式以外の tap は一度だけ信頼の登録が要る
+brew install --cask yanoryuu/tap/cc-hub
+```
+
+- 更新: `brew upgrade --cask cc-hub`
+- 削除: `brew uninstall --cask cc-hub`(設定やデータごと消すなら `--zap`)
+
+Homebrew を使わない場合は、[Releases](https://github.com/yanoryuu/cc-hub-mac/releases) の `CC-Hub-<バージョン>-arm64.dmg` を開き、
+`CC Hub.app` を「アプリケーション」へドラッグします。署名していないため、初回は Finder で右クリック →「開く」で起動してください
+(または `xattr -dr com.apple.quarantine "/Applications/CC Hub.app"`)。
+
+## 起動
+
+- 「アプリケーション」フォルダの **CC Hub** を開きます(Launchpad や Spotlight で「CC Hub」と打っても開けます)。
+  ターミナルからなら `open -a "CC Hub"`。
+- 初回の起動で Claude Code との連携(mod「cc-hub」・MCP「cc-hub」・スキル `hub-commander`)を自動で設定し、
+  次からはログイン時に自動で起動します(メニューバーの CC Hub のアイコン →「ログイン時に起動」で切り替え)。
+- ウィンドウを閉じてもメニューバーに残り、裏で動き続けます。もう一度出すには、メニューバーのアイコンか Dock のアイコンを押すか、⌘⇧Space。
+  完全に止めるときは、メニューバーのアイコン →「終了」。
+- ブラウザからは http://127.0.0.1:7861 で同じ画面を開けます(PIN を聞かれたら `~/Library/Application Support/cc-hub/config.json` の `pin`)。
+- ターミナルや VS Code で使っている Claude Code も、起動し直したものから一覧に出ます。
+
+データは `~/Library/Application Support/cc-hub` に置きます(デーモンのログは `daemon.log`、連携の設定の記録は `setup.log`)。
 
 ## Windows 版との違い
 
