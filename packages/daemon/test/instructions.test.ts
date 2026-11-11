@@ -40,10 +40,16 @@ test('lineWarning: 90% 以上で注意、上限超えで要点を絞る', () => 
   assert.equal(lineWarning(countLines(lines(230))), '200 行を超えています(230 行)。要点を絞ってください');
 });
 
+const WIN = process.platform === 'win32';
 test('keyString / fileNameFor: repoId 優先、フォルダは大文字小文字・区切り・末尾を揃える', () => {
-  assert.equal(keyString({ repoId: 'Owner/Repo', cwd: 'D:\\x' }), 'r:owner/repo');
-  assert.equal(keyString({ repoId: null, cwd: 'D:\\AITEST\\P7\\' }), keyString({ repoId: null, cwd: 'd:/aitest/p7' }));
-  assert.equal(normDir('D:\\'), 'd:\\');
+  assert.equal(keyString({ repoId: 'Owner/Repo', cwd: WIN ? 'D:\\x' : '/x' }), 'r:owner/repo');
+  if (WIN) {
+    assert.equal(keyString({ repoId: null, cwd: 'D:\\AITEST\\P7\\' }), keyString({ repoId: null, cwd: 'd:/aitest/p7' }));
+    assert.equal(normDir('D:\\'), 'd:\\');
+  } else {
+    assert.equal(keyString({ repoId: null, cwd: '/Users/Me/P7/' }), keyString({ repoId: null, cwd: '/users/me/p7' }));
+    assert.equal(normDir('/'), '/');
+  }
   assert.throws(() => keyString({ repoId: null, cwd: null }));
   const f = fileNameFor('d:\\aitest\\p7');
   assert.match(f, /^[0-9a-f]{24}\.md$/);
@@ -51,9 +57,13 @@ test('keyString / fileNameFor: repoId 優先、フォルダは大文字小文字
   assert.notEqual(f, fileNameFor('d:\\aitest\\p8'));
 });
 
-test('ancestors: 近い順にドライブまで', () => {
-  const a = ancestors('D:\\AITEST\\p7\\site');
-  assert.deepEqual(a, [path.resolve('D:\\AITEST\\p7\\site'), path.resolve('D:\\AITEST\\p7'), path.resolve('D:\\AITEST'), 'D:\\']);
+test('ancestors: 近い順にドライブ(ルート)まで', () => {
+  if (WIN) {
+    const a = ancestors('D:\\AITEST\\p7\\site');
+    assert.deepEqual(a, [path.resolve('D:\\AITEST\\p7\\site'), path.resolve('D:\\AITEST\\p7'), path.resolve('D:\\AITEST'), 'D:\\']);
+  } else {
+    assert.deepEqual(ancestors('/a/b/c'), ['/a/b/c', '/a/b', '/a', '/']);
+  }
 });
 
 test('rewritePrompt / cleanProposal', () => {

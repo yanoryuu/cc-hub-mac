@@ -161,7 +161,7 @@ test('walkLocal: 除外を守り / 区切りで返す。sha1File', async () => {
     // checkLocalDir / projectRootFor
     assert.equal(checkLocalDir(root), path.resolve(root));
     assert.throws(() => checkLocalDir('relative/dir'), /絶対パス/);
-    assert.throws(() => checkLocalDir('C:\\'), /ドライブ直下/);
+    assert.throws(() => checkLocalDir(process.platform === 'win32' ? 'C:\\' : '/'), /ドライブ直下/);
     assert.throws(() => checkLocalDir(path.join(root, 'nope')), /存在しません/);
     fs.writeFileSync(path.join(root, 'package.json'), '{}');
     assert.equal(projectRootFor(path.join(root, 'img', 'sub')), root);

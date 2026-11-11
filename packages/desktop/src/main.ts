@@ -1,6 +1,6 @@
 // CC Hub デスクトップシェル(Electron)
 // デーモンを必要に応じて起動し、Web UI を表示する。終了してもデーモンは止めない。
-// インストール版(app.isPackaged): デーモン一式は resources/hub(同梱の cc-hub-node.exe で動かす)。
+// インストール版(app.isPackaged): デーモン一式は resources/hub(同梱の cc-hub-node[.exe] で動かす)。
 //   ログイン時にトレイで起動し、デーモンが落ちていれば起こし直す(開発版の watchdog / スタートアップ登録の代わり)。
 //   初回(とバージョンが変わったとき)は Claude Code に hooks・MCP・スキルを登録する(setup.ts)
 import {
@@ -21,7 +21,8 @@ const repoRoot = path.resolve(__dirname, '..', '..', '..'); // dist → desktop 
 const hubRoot = app.isPackaged ? path.join(process.resourcesPath, 'hub') : repoRoot;
 const daemonEntry = path.join(hubRoot, 'packages', 'daemon', 'dist', 'main.js');
 /** デーモンを動かす node(インストール版は同梱、開発版は PATH の node) */
-const nodeExe = app.isPackaged ? path.join(hubRoot, 'cc-hub-node.exe') : 'node';
+const IS_MAC = process.platform === 'darwin';
+const nodeExe = app.isPackaged ? path.join(hubRoot, IS_MAC ? 'cc-hub-node' : 'cc-hub-node.exe') : 'node';
 /** 検証用(CC_HUB_DATA_DIR を指定)の起動では、ログイン時の起動を登録しない */
 const isolated = !!process.env.CC_HUB_DATA_DIR;
 /** ログイン時の起動(--hidden)ではウィンドウを出さずにトレイに置く */
@@ -241,6 +242,8 @@ function createWindow(): void {
 
 function createTray(): void {
   const icon = nativeImage.createFromPath(path.join(__dirname, '..', 'assets', 'icon.png')).resize({ width: 16, height: 16 });
+  // macOS のメニューバーはテンプレート画像(黒 + 透明)なので、通常の色アイコンは使わず白黒に自動で合わせる
+  if (IS_MAC) icon.setTemplateImage(true);
   tray = new Tray(icon);
   tray.setToolTip('CC Hub');
   tray.setContextMenu(Menu.buildFromTemplate([
@@ -323,6 +326,8 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   app.on('second-instance', showWindow);
+  // macOS: Dock のアイコンを押したらウィンドウを出す
+  app.on('activate', showWindow);
   // インストール版はインストーラーが作るショートカットの AppUserModelId(= appId)と合わせる(合わないと Windows の通知が出ない)
   app.setAppUserModelId(app.isPackaged ? APP_ID : 'CC Hub');
   app.whenReady().then(() => {
@@ -333,7 +338,7 @@ if (!app.requestSingleInstanceLock()) {
     }
     createWindow();
     createTray();
-    globalShortcut.register('Control+Shift+Space', toggleWindow);
+    globalShortcut.register(IS_MAC ? 'Command+Shift+Space' : 'Control+Shift+Space', toggleWindow);
   });
   app.on('before-quit', () => { quitting = true; });
   app.on('will-quit', () => globalShortcut.unregisterAll());

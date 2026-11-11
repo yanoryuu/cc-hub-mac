@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
+import { IS_WIN, killTree } from '../platform';
 
 export interface RunResult {
   code: number;
@@ -71,6 +72,7 @@ export function run(cmd: string, args: string[], o: RunOptions = {}): Promise<Ru
         env: cleanEnv(o.env),
         windowsHide: true,
         shell: !!o.shell,
+        detached: !IS_WIN, // macOS: 新しいプロセスグループにして、タイムアウト時にグループごと止める
         stdio: [o.input != null ? 'pipe' : 'ignore', 'pipe', 'pipe'],
       });
     } catch (e) {
@@ -87,7 +89,7 @@ export function run(cmd: string, args: string[], o: RunOptions = {}): Promise<Ru
     if (o.timeout) {
       timer = setTimeout(() => {
         err += `\n[timeout ${o.timeout}ms]`;
-        killTree(pid);
+        killTree(pid, { group: true });
         finish(-1);
       }, o.timeout);
     }
@@ -102,16 +104,6 @@ export function run(cmd: string, args: string[], o: RunOptions = {}): Promise<Ru
     child.on('error', (e) => finish(-1, String(e.message)));
     child.on('close', (code) => finish(code ?? -1));
   });
-}
-
-/** Windows: 子プロセスごと終了させる(npm などはシェルの下に孫がいる) */
-function killTree(pid: number | undefined): void {
-  if (!pid) return;
-  try {
-    spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
-  } catch {
-    /* 無視 */
-  }
 }
 
 /** エラーメッセージ用に出力を短くまとめる */

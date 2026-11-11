@@ -249,11 +249,13 @@ test('firebase CLI の起動方法: .cjs は node、.cmd は隣の本体を node
   const r2 = resolveFirebaseCommand(path.join(npmDir, 'firebase.cmd'));
   assert.deepEqual([r2.file, r2.prefix, r2.viaCmd], [process.execPath, [js], false]);
   // 自動: APPDATA\npm の firebase-tools
-  const r3 = resolveFirebaseCommand('', { APPDATA: tmp, PATH: '' });
+  const r3 = resolveFirebaseCommand('', { APPDATA: tmp, PATH: '' }, true);
   assert.deepEqual([r3.file, r3.prefix], [process.execPath, [js]]);
   // 何も無ければ cmd.exe /d /c firebase(引数は SAFE_ARG_RE のみ)
-  const r4 = resolveFirebaseCommand('', { APPDATA: path.join(tmp, 'none'), PATH: '', ComSpec: 'C:\\Windows\\system32\\cmd.exe' });
+  const r4 = resolveFirebaseCommand('', { APPDATA: path.join(tmp, 'none'), PATH: '', ComSpec: 'C:\\Windows\\system32\\cmd.exe' }, true);
   assert.deepEqual([r4.file, r4.prefix, r4.viaCmd], ['C:\\Windows\\system32\\cmd.exe', ['/d', '/c', 'firebase'], true]);
+  // macOS: PATH の firebase を直接
+  assert.deepEqual(resolveFirebaseCommand('', { PATH: '' }, false), { file: 'firebase', prefix: [], viaCmd: false });
   assert.ok(SAFE_ARG_RE.test('cchub-20260105-0907'));
   assert.ok(SAFE_ARG_RE.test('functions,firestore:rules'));
   assert.ok(SAFE_ARG_RE.test('site:live'));

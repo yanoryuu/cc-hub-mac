@@ -66,6 +66,7 @@ const SETTINGS = path.resolve(opt('--settings') || path.join(HOME, '.claude', 's
 // ------------------------------------------------------------ デーモンの設定(ポート / ingest トークン)
 function dataDir() {
   if (process.env.CC_HUB_DATA_DIR) return path.resolve(process.env.CC_HUB_DATA_DIR);
+  if (process.platform === 'darwin') return path.join(HOME, 'Library', 'Application Support', 'cc-hub');
   const appData = process.env.APPDATA || path.join(HOME, 'AppData', 'Roaming');
   return path.join(appData, 'cc-hub');
 }
@@ -185,7 +186,7 @@ function previousStatusline(dir) {
     /* 次へ */
   }
   // 記録が無い: 以前の claude-statusline.ps1 があればそれに、無ければ statusLine を消す(null)
-  return fs.existsSync(path.join(HOME, '.claude', 'scripts', 'claude-statusline.ps1')) ? PS1_STATUSLINE : null;
+  return process.platform === 'win32' && fs.existsSync(path.join(HOME, '.claude', 'scripts', 'claude-statusline.ps1')) ? PS1_STATUSLINE : null;
 }
 
 function main() {

@@ -30,7 +30,8 @@ const CONFIG = ['guardWorktree=true', 'guardDeploy=true', 'toasts=true'];
 
 function claudePath() {
   if (opt('--claude')) return opt('--claude');
-  const dir = process.env.CC_HUB_DATA_DIR || path.join(process.env.APPDATA || path.join(HOME, 'AppData', 'Roaming'), 'cc-hub');
+  const base = process.platform === 'darwin' ? path.join(HOME, 'Library', 'Application Support') : process.env.APPDATA || path.join(HOME, 'AppData', 'Roaming');
+  const dir = process.env.CC_HUB_DATA_DIR || path.join(base, 'cc-hub');
   try {
     const cfg = JSON.parse(fs.readFileSync(path.join(dir, 'config.json'), 'utf8'));
     if (cfg.claudePath) return cfg.claudePath;

@@ -1,11 +1,12 @@
-// 設定とデータディレクトリ(%APPDATA%\cc-hub)。
-// 環境変数 CC_HUB_DATA_DIR で別ディレクトリを使える(テスト用に %APPDATA% を汚さないため)。
+// 設定とデータディレクトリ(Windows: %APPDATA%\cc-hub / macOS: ~/Library/Application Support/cc-hub)。
+// 環境変数 CC_HUB_DATA_DIR で別ディレクトリを使える(テスト用に本物のデータを汚さないため)。
 // PIN とトークンは絶対にログへ出さないこと。
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
 import { DEFAULT_PORT } from '@cc-hub/shared';
+import { IS_WIN } from './platform';
 
 export interface HubConfig {
   port: number;
@@ -32,14 +33,14 @@ export interface HubConfig {
   prPollSeconds: number;
   // ---- 指示・PowerShell
   /**
-   * 「PowerShell で開く」に使うランチャー。'' = 既定(cmd.exe /c start で新しい PowerShell ウィンドウを開く)。
-   * 実行ファイルのパスを指定すると、既定で実行するはずのコマンド(cmd.exe /c start ...)を引数として渡して実行する。
+   * 「ターミナルで開く」に使うランチャー。'' = 既定(Windows: cmd.exe /c start で新しい PowerShell ウィンドウ / macOS: osascript で Terminal.app の新しいウィンドウ)。
+   * 実行ファイルのパスを指定すると、既定で実行するはずのコマンド(cmd.exe /c start ... / osascript ...)を引数として渡して実行する。
    * .js / .cjs は node で実行する(検証用: 引数を記録するだけの偽ランチャー)
    */
   terminalLauncher: string;
   // ---- Firebase
   /**
-   * firebase CLI のパス。'' = 自動(npm のグローバルの firebase-tools を node で直接実行 → PATH の firebase.cmd の隣 → cmd /c firebase)。
+   * firebase CLI のパス。'' = 自動(Windows: npm のグローバルの firebase-tools を node で直接実行 → PATH の firebase.cmd の隣 → cmd /c firebase / macOS: PATH の firebase)。
    * .cmd はその隣の firebase-tools 本体を node で実行する(シェルを通さない)。.js / .cjs は node で実行する(検証用の偽 firebase CLI)
    */
   firebasePath: string;
@@ -47,7 +48,8 @@ export interface HubConfig {
 
 // プロジェクトごとに D:\WorkTree\<name>\(.base + wt-NN)を作る。C ドライブの空きが少ないため D に統一。
 // D ドライブが無い PC(インストール版を入れた別の PC など)は %USERPROFILE%\WorkTree
-const WORKTREE_ROOT = fs.existsSync('D:\\') ? 'D:\\WorkTree' : path.join(process.env.USERPROFILE || os.homedir(), 'WorkTree');
+// macOS は ~/WorkTree
+const WORKTREE_ROOT = IS_WIN && fs.existsSync('D:\\') ? 'D:\\WorkTree' : path.join(process.env.USERPROFILE || os.homedir(), 'WorkTree');
 export const DEFAULT_WORKTREE_ROOTS = { default: WORKTREE_ROOT, unity: WORKTREE_ROOT };
 
 function numOr(v: unknown, def: number, min: number, max: number): number {
@@ -60,6 +62,7 @@ export const HOME = process.env.USERPROFILE || os.homedir();
 
 export function dataDir(): string {
   if (process.env.CC_HUB_DATA_DIR) return path.resolve(process.env.CC_HUB_DATA_DIR);
+  if (!IS_WIN) return path.join(HOME, 'Library', 'Application Support', 'cc-hub');
   const appData = process.env.APPDATA || path.join(HOME, 'AppData', 'Roaming');
   return path.join(appData, 'cc-hub');
 }
@@ -67,8 +70,11 @@ export function dataDir(): string {
 const CC_REMOTE_CONFIG = path.join(HOME, 'cc-remote', 'config.json');
 
 function defaultClaudePath(): string {
-  const p = path.join(HOME, '.local', 'bin', 'claude.exe');
-  return fs.existsSync(p) ? p : 'claude';
+  const p = path.join(HOME, '.local', 'bin', IS_WIN ? 'claude.exe' : 'claude');
+  if (fs.existsSync(p)) return p;
+  // macOS: Homebrew(Apple Silicon / Intel)や npm のグローバル。デーモンは launchd / Finder から起動され PATH が短いことがあるので絶対パスで探す
+  for (const c of IS_WIN ? [] : ['/opt/homebrew/bin/claude', '/usr/local/bin/claude']) if (fs.existsSync(c)) return c;
+  return 'claude';
 }
 
 // 初回起動時: config.json を作り、CC Remote の PIN と claudePath を引き継ぐ

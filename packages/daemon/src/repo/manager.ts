@@ -15,7 +15,7 @@ import { defaultKeepDirs, detectKind } from './kind';
 import { WorktreePool, baseOf, DISK_WARN_PREFIX } from './pool';
 import { sessionsInside } from './worktree-ops';
 import { generateSlug, sanitizeSlug } from './slug';
-import { spawn } from 'node:child_process';
+import { FILE_MANAGER, openFolder } from '../platform';
 import { launchUnity } from '../unity/launcher';
 
 const CLONE_TIMEOUT = 60 * 60_000;
@@ -628,8 +628,8 @@ export class RepoManager {
           const u = await launchUnity(st.path);
           this.pool.setMainOpened(repoId, open, u.launched ? `Unity ${u.editorVersion ?? ''} で開いています` : 'すでに Unity で開いています(最新の内容は Unity に戻ると読み込まれます)');
         } else {
-          spawn('explorer.exe', [st.path], { detached: true, stdio: 'ignore', windowsHide: false }).on('error', () => undefined).unref();
-          this.pool.setMainOpened(repoId, open, 'エクスプローラーで開きました');
+          openFolder(st.path);
+          this.pool.setMainOpened(repoId, open, `${FILE_MANAGER}で開きました`);
         }
       } catch (e) {
         this.pool.setMainOpened(repoId, open, `開けませんでした: ${(e as Error).message}`);

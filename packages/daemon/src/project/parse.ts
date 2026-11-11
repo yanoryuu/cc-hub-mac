@@ -267,9 +267,10 @@ export function isArtifactExcluded(p: string): boolean {
  */
 export function resolveTargetPath(root: string, rel: unknown): string | null {
   if (typeof rel !== 'string') return null;
-  const r = rel.trim();
+  // macOS では \ は普通の文字だが、Windows と同じ検査にそろえる(\ も区切りとして扱い、..\ による抜け出しを防ぐ)
+  const r = rel.trim().replace(/\\/g, path.sep === '\\' ? '\\' : '/');
   if (!r || r.includes('\0')) return null;
-  if (path.isAbsolute(r) || /^[a-zA-Z]:/.test(r) || r.startsWith('\\\\') || r.startsWith('//')) return null;
+  if (path.isAbsolute(r) || /^[a-zA-Z]:/.test(r) || r.startsWith('//')) return null;
   const abs = path.resolve(root, r);
   if (!isInside(root, abs) || sameDir(root, abs)) return null;
   const relNorm = path.relative(path.resolve(root), abs);

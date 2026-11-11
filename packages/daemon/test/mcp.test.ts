@@ -1,6 +1,7 @@
 // CC Hub の MCP サーバーのツール定義と入力の検証のテスト。
 // 実行: npm run test -w @cc-hub/daemon
 import assert from 'node:assert/strict';
+import { P } from './winpath';
 import type { SessionInfo } from '@cc-hub/shared';
 import { TOOLS, ToolInputError, callTool, listToolsResult, sessionForCwd, validateArgs } from '../src/mcp/tools';
 
@@ -54,7 +55,7 @@ test('ツールの一覧は契約どおり', () => {
 
 test('validateArgs: 必須・型・未知の引数・長さ・cwd の絶対パス', () => {
   assert.deepEqual(validateArgs('list_servers', undefined), {});
-  assert.deepEqual(validateArgs('request_deploy', { server: '本番', note: '公開', cwd: 'D:\\x' }), { server: '本番', note: '公開', cwd: 'D:\\x' });
+  assert.deepEqual(validateArgs('request_deploy', { server: '本番', note: '公開', cwd: P('D:\\x') }), { server: '本番', note: '公開', cwd: P('D:\\x') });
   assert.throws(() => validateArgs('request_deploy', { server: '本番' }), /note を指定/);
   assert.throws(() => validateArgs('request_deploy', { server: '本番', note: '   ' }), /note を指定/);
   assert.throws(() => validateArgs('request_deploy', { server: 1, note: 'x' }), /文字列/);
@@ -69,12 +70,12 @@ test('validateArgs: 必須・型・未知の引数・長さ・cwd の絶対パ�
 });
 
 test('validateArgs: request_firebase_deploy(配列・真偽値・選べる値)', () => {
-  const ok = validateArgs('request_firebase_deploy', { cwd: 'D:\\site', targets: ['hosting', 'functions', 'hosting'], note: '公開', preview: false });
-  assert.deepEqual(ok, { cwd: 'D:\\site', targets: ['hosting', 'functions'], note: '公開', preview: false });
-  assert.throws(() => validateArgs('request_firebase_deploy', { cwd: 'D:\\s', targets: [], note: 'x' }), /targets を指定/);
-  assert.throws(() => validateArgs('request_firebase_deploy', { cwd: 'D:\\s', targets: 'hosting', note: 'x' }), /配列/);
-  assert.throws(() => validateArgs('request_firebase_deploy', { cwd: 'D:\\s', targets: ['database'], note: 'x' }), /使えない値です: database/);
-  assert.throws(() => validateArgs('request_firebase_deploy', { cwd: 'D:\\s', targets: ['hosting'], note: 'x', preview: 'no' }), /true \/ false/);
+  const ok = validateArgs('request_firebase_deploy', { cwd: P('D:\\site'), targets: ['hosting', 'functions', 'hosting'], note: '公開', preview: false });
+  assert.deepEqual(ok, { cwd: P('D:\\site'), targets: ['hosting', 'functions'], note: '公開', preview: false });
+  assert.throws(() => validateArgs('request_firebase_deploy', { cwd: P('D:\\s'), targets: [], note: 'x' }), /targets を指定/);
+  assert.throws(() => validateArgs('request_firebase_deploy', { cwd: P('D:\\s'), targets: 'hosting', note: 'x' }), /配列/);
+  assert.throws(() => validateArgs('request_firebase_deploy', { cwd: P('D:\\s'), targets: ['database'], note: 'x' }), /使えない値です: database/);
+  assert.throws(() => validateArgs('request_firebase_deploy', { cwd: P('D:\\s'), targets: ['hosting'], note: 'x', preview: 'no' }), /true \/ false/);
   assert.throws(() => validateArgs('request_firebase_deploy', { targets: ['hosting'], note: 'x' }), /cwd を指定/);
   assert.throws(() => validateArgs('firebase_status', { cwd: 'rel' }), /絶対パス/);
   const r = listToolsResult() as any;
@@ -92,17 +93,17 @@ const S = (o: Partial<SessionInfo>): SessionInfo => ({ id: 'x', name: 'x', cwd: 
 
 test('sessionForCwd: いちばん深い cwd、動いているもの、新しいもの', () => {
   const all = [
-    S({ id: 'root', cwd: 'D:\\p', lastEventAt: 5 }),
-    S({ id: 'site-old', cwd: 'D:\\p\\site', lastEventAt: 1 }),
-    S({ id: 'site-new', cwd: 'D:\\p\\site', lastEventAt: 2 }),
-    S({ id: 'site-stopped', cwd: 'D:\\p\\site', status: 'stopped', lastEventAt: 9 }),
-    S({ id: 'other', cwd: 'D:\\q', lastEventAt: 9 }),
+    S({ id: 'root', cwd: P('D:\\p'), lastEventAt: 5 }),
+    S({ id: 'site-old', cwd: P('D:\\p\\site'), lastEventAt: 1 }),
+    S({ id: 'site-new', cwd: P('D:\\p\\site'), lastEventAt: 2 }),
+    S({ id: 'site-stopped', cwd: P('D:\\p\\site'), status: 'stopped', lastEventAt: 9 }),
+    S({ id: 'other', cwd: P('D:\\q'), lastEventAt: 9 }),
   ];
-  assert.equal(sessionForCwd(all, 'D:\\P\\Site\\src')?.id, 'site-new');
-  assert.equal(sessionForCwd(all, 'D:\\p\\docs')?.id, 'root');
-  assert.equal(sessionForCwd(all, 'E:\\none'), null);
+  assert.equal(sessionForCwd(all, P('D:\\P\\Site\\src'))?.id, 'site-new');
+  assert.equal(sessionForCwd(all, P('D:\\p\\docs'))?.id, 'root');
+  assert.equal(sessionForCwd(all, P('E:\\none')), null);
   // D:\pp は D:\p の中ではない
-  assert.equal(sessionForCwd(all, 'D:\\pp'), null);
+  assert.equal(sessionForCwd(all, P('D:\\pp')), null);
 });
 
 test('callTool: 引数の誤りは ToolInputError、cwd が無いと共通の指示は読めない', async () => {

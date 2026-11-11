@@ -10,7 +10,8 @@
     "build": "esbuild src/main.ts src/preload.ts --bundle --platform=node --target=node22 --format=cjs --outdir=dist --external:electron --sourcemap",
     "start": "npm run build && electron .",
     "typecheck": "tsc -p tsconfig.json",
-    "dist": "node ../../scripts/stage-hub.cjs && electron-builder --win nsis"
+    "dist": "node ../../scripts/stage-hub.cjs && electron-builder --win nsis",
+    "dist:mac": "node ../../scripts/stage-hub.cjs && electron-builder --mac dmg --$(uname -m | sed s/x86_64/x64/)"
   },
   "devDependencies": {
     "@cc-hub/shared": "0.1.0",
@@ -43,6 +44,17 @@
       }
     ],
     "npmRebuild": false,
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.developer-tools",
+      "icon": "assets/icon.icns",
+      "identity": null,
+      "artifactName": "CC-Hub-${version}-${arch}.${ext}",
+      "extendInfo": { "LSUIElement": false }
+    },
+    "dmg": {
+      "title": "CC Hub ${version}"
+    },
     "win": {
       "target": "nsis",
       "icon": "assets/app.ico"

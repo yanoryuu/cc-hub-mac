@@ -1,60 +1,63 @@
-# CC Hub
+# CC Hub for Mac
 
-複数の Claude Code セッションを 1 つの画面でまとめて扱う Windows 用のアプリです。
+複数の Claude Code セッションを 1 つの画面でまとめて扱うアプリ [CC Hub](https://github.com/yanoryuu/cc-hub)(Windows 用)の macOS 版です。
 
-## インストール(Windows)
+## インストール(macOS)
 
 1. 先に次の 2 つを入れておきます。
-   - **Claude Code**: PowerShell で `irm https://claude.ai/install.ps1 | iex` を実行し、一度 `claude` を起動してログインします。
-   - **Git**: [Git for Windows](https://git-scm.com/download/win) を既定の設定のまま入れます。
+   - **Claude Code**: ターミナルで `curl -fsSL https://claude.ai/install.sh | bash` を実行し、一度 `claude` を起動してログインします。
+   - **Git**: `xcode-select --install`(または `brew install git`)。
    - (任意)PR の機能を使うなら [GitHub CLI](https://cli.github.com/) を入れて `gh auth login` しておきます。
-2. Releases から `CC-Hub-Setup-<バージョン>.exe` をダウンロードして実行します。
-   - 署名していないため「Windows によって PC が保護されました」と出ることがあります。「詳細情報」→「実行」で進めてください。
-3. インストールが終わると CC Hub が起動し、Claude Code との連携を自動で設定します。
+2. `CC-Hub-<バージョン>-arm64.dmg` を開き、`CC Hub.app` を「アプリケーション」へドラッグします。
+   - 署名していないため、初回は Finder で `CC Hub.app` を右クリック →「開く」で起動してください
+     (または `xattr -dr com.apple.quarantine "/Applications/CC Hub.app"`)。
+3. 起動すると Claude Code との連携(mod「cc-hub」・MCP「cc-hub」・スキル `hub-commander`)を自動で設定します。
 
-Node.js のインストールや、コマンドでの設定は要りません。
+データは `~/Library/Application Support/cc-hub` に置きます(設定の記録は `setup.log`)。
 
-### インストール時に自動で行うこと
+## Windows 版との違い
 
-- CC Hub 本体(デーモン)の起動と、ログイン時の自動起動(トレイの「ログイン時に起動」で切り替え)
-- 本体が止まったときの自動の起こし直し
-- Claude Code への登録
-  - mod「cc-hub」(下記)。入れられなかったときは、今までどおり `~/.claude/settings.json` に hooks を登録します(書き換える前にバックアップを作ります)
-  - MCP サーバー「cc-hub」
-  - スキル `hub-commander`
+| | Windows | macOS |
+|---|---|---|
+| データフォルダ | `%APPDATA%\cc-hub` | `~/Library/Application Support/cc-hub` |
+| 秘密情報の暗号化 | DPAPI | AES-256-GCM(鍵はキーチェーン。使えなければ 0600 のファイル) |
+| 「ターミナルで開く」 | 新しい PowerShell ウィンドウ | Terminal.app の新しいウィンドウ(osascript) |
+| CC Hub 内の端末 | PowerShell | ログインシェル(`$SHELL -l`) |
+| 「アプリを開く」ボタン | `cmd /c start …` | `/bin/sh -c …`(GUI アプリは `open -a アプリ名` と書く) |
+| フォルダを開く | エクスプローラー | Finder |
+| Unity エディタ | `C:\Program Files\Unity\Hub\Editor` | `/Applications/Unity/Hub/Editor` |
+| ゲーム画面の共有(gamecap) | 対応 | 未対応 |
+| 作業ツリーの既定の場所 | `D:\WorkTree`(無ければ `%USERPROFILE%\WorkTree`) | `~/WorkTree` |
+| ショートカット | Ctrl+Shift+Space | ⌘+Shift+Space |
 
-## mod「cc-hub」(Claude Code のセッションの中で動く部分)
-
-Claude Code のどのセッション(ターミナル・VS Code・CC Hub から起動したもの)でも、次のことができます。
-
-- CC Hub へのイベントの送信(ターミナルや VS Code のセッションも CC Hub に表示されます)
-- 入力欄の上の帯: ほかのセッションの承認待ち、同じ作業ツリーで動いている別のセッション
-- `/hub`(状況)、`/hub pane`(パネル。承認待ちにボタンで答えられる)、`/hub new <指示>`(新しいセッション)
-- ステータスライン(作業中・承認待ちの数)と、ほかのセッションが承認待ち・終わった・エラーになったときの短い知らせ
-- 見張り: CC Hub の作業ツリーで既定のブランチへの切り替え・作業ツリーの削除・ほかの作業ツリーの編集を止め、
-  `firebase deploy` や `scp` などの直接のデプロイを CC Hub の承認に回す(`/plugin configure cc-hub@cc-hub` で切り替え)
-- プロジェクトの共通の指示を、CC Hub から起動していないセッションにも渡す
-
-インストーラーを使わずに mod だけ入れるときは、ターミナルの Claude Code で:
-
-```
-/plugin install cc-hub --marketplace yanoryuu/cc-hub
-```
-
-設定の記録は `%APPDATA%\cc-hub\setup.log` にあります。
-
-### アンインストール
-
-「設定」→「アプリ」→「CC Hub」→「アンインストール」。Claude Code に登録した hooks と MCP も外します。
-セッションの記録や設定(`%APPDATA%\cc-hub`)は残ります。
-
-## インストーラーの作り方(開発者向け)
+## 開発
 
 ```
 npm install
-npm run dist
+npm run build
+npm run daemon                # デーモンだけ動かす
+npm run desktop               # Electron で開く
+npm test -w @cc-hub/daemon    # テスト
 ```
 
-`release\CC-Hub-Setup-<バージョン>.exe` ができます。インストーラーには、ビルドに使った node.exe とネイティブモジュールをそのまま同梱します(`scripts\stage-hub.cjs`)。
+ログイン時にデーモンを起動する(開発版。launchd に登録):
 
-設計は `docs\design.md`、要件は `docs\requirements.md` にあります。
+```
+./scripts/install-mac.sh          # 登録
+./scripts/install-mac.sh --uninstall
+./scripts/deploy.sh               # ビルドしてデーモンを再起動
+```
+
+### dmg の作り方
+
+```
+npm install
+npm run build
+npm run dist:mac -w @cc-hub/desktop
+```
+
+`release/CC-Hub-<バージョン>-<arch>.dmg` ができます。いま動いている node と同じバージョンの公式の node(nodejs.org の単体バイナリ)を同梱します
+(Homebrew の node は動的リンクのため同梱できません。`scripts/stage-hub.cjs`)。ネイティブモジュールはビルドした Mac の CPU 用だけなので、
+Apple Silicon 用と Intel 用はそれぞれの Mac で作ってください。
+
+設計は `docs/design.md`、要件は `docs/requirements.md`(Windows 版のもの)にあります。

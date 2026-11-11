@@ -4,6 +4,7 @@
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { HttpError } from '../util';
+import { IS_MAC } from '../platform';
 
 /** PowerShell の単一引用符リテラルにする('' でエスケープ。$ や ` は展開されない) */
 export function psQuote(s: string): string {
@@ -52,8 +53,43 @@ export function buildPsCommand(o: Pick<TerminalSpec, 'cwd' | 'claudePath' | 'res
   return `Set-Location -LiteralPath ${psQuote(o.cwd)}; & ${psQuote(o.claudePath)} ${args}`;
 }
 
+/** POSIX シェルの単一引用符リテラル */
+export function shQuote(s: string): string {
+  return `'${String(s).replace(/'/g, `'\\''`)}'`;
+}
+
+/** POSIX シェルに渡す引数。安全な文字だけならそのまま、それ以外は単一引用符で囲む */
+export function shArg(s: string): string {
+  return /^[A-Za-z0-9_\-.:=/@,]+$/.test(s) ? s : shQuote(s);
+}
+
+/** AppleScript の文字列リテラルの中身(\ と " をエスケープ) */
+export function asEscape(s: string): string {
+  return String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+/** macOS: 新しい Terminal.app のウィンドウで実行するシェルのコマンド(cd してから claude --resume) */
+export function buildShCommand(o: Pick<TerminalSpec, 'cwd' | 'claudePath' | 'resumeId' | 'extraArgs'>): string {
+  const args = ['--resume', o.resumeId, ...o.extraArgs].map(shArg).join(' ');
+  return `cd ${shQuote(o.cwd)} && ${shArg(o.claudePath)} ${args}`;
+}
+
+/** macOS の既定: osascript で Terminal.app にコマンドを実行させる(CC Hub のセッションに紐付ける変数は env で渡す) */
+export function buildMacTerminalArgv(o: TerminalSpec): string[] {
+  for (const [label, v] of [['作業フォルダ', o.cwd], ['claude のパス', o.claudePath], ...o.extraArgs.map((a) => ['claude の引数', a])]) {
+    if (/[\r\n\0]/.test(v)) throw new HttpError(400, `${label}に改行が含まれているためターミナルで開けません`);
+  }
+  const line = asEscape(buildShCommand(o));
+  return ['osascript', '-e', 'tell application "Terminal"', '-e', 'activate', '-e', `do script "${line}"`, '-e', 'end tell'];
+}
+
 /** 既定のランチャーで実行するコマンド(argv)。cmd.exe /c start "<タイトル>" powershell.exe -NoExit -Command "<コマンド>" */
 export function buildTerminalArgv(o: TerminalSpec): string[] {
+  return IS_MAC ? buildMacTerminalArgv(o) : buildWinTerminalArgv(o);
+}
+
+/** Windows の既定(cmd.exe /c start …) */
+export function buildWinTerminalArgv(o: TerminalSpec): string[] {
   checkCmdSafe('作業フォルダ', o.cwd);
   checkCmdSafe('claude のパス', o.claudePath);
   for (const a of o.extraArgs) checkCmdSafe('claude の引数', a);

@@ -19,6 +19,7 @@ import type { DeployJob, DeployPlan, FirebaseDeploy, FirebaseTarget, ServerInfo,
 import { bus } from '../bus';
 import type { Store } from '../store/db';
 import type { SecretBox } from '../dpapi';
+import { IS_WIN, killTree as killProcTree } from '../platform';
 import { cleanEnv } from '../repo/exec';
 import { HttpError } from '../util';
 import { emitNotify } from '../notify/emit';
@@ -558,10 +559,10 @@ export class DeployService {
     return new Promise((resolve) => {
       pushLog(r.job.log, `$ ${cmd}  (${cwd})`);
       this.emit(r);
-      const child = spawn(cmd, { cwd, shell: true, env: cleanEnv(), windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+      const child = spawn(cmd, { cwd, shell: true, env: cleanEnv(), windowsHide: true, detached: !IS_WIN, stdio: ['ignore', 'pipe', 'pipe'] });
       let done = false;
       const killTree = () => {
-        if (child.pid) spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' }).on('error', () => undefined);
+        killProcTree(child.pid, { group: true });
       };
       r.kill = killTree;
       const timer = setTimeout(() => {

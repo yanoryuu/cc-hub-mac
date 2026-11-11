@@ -1,6 +1,7 @@
 // 「アプリを開く」ボタンの検証・一覧の更新・{cwd} の置き換え・cmd.exe の引数のテスト。
 // 実行: npm run test -w @cc-hub/daemon
 import assert from 'node:assert/strict';
+import { P } from './winpath';
 import type { AppLauncher } from '@cc-hub/shared';
 import {
   LAUNCHER_MAX,
@@ -128,7 +129,7 @@ test('起動時の環境変数から CLAUDE* / CLAUDECODE を取り除く', () =
 });
 
 test('Unity の起動結果の文', () => {
-  const base = { projectPath: 'D:\\u', editorVersion: '6000.0.1f1', editorPath: 'x', installedVersions: [], runningPid: 42 };
+  const base = { projectPath: P('D:\\u'), editorVersion: '6000.0.1f1', editorPath: 'x', installedVersions: [], runningPid: 42 };
   assert.match(unityMessage({ ...base, launched: true }), /6000\.0\.1f1 でプロジェクトを開きました\(PID 42\)/);
   assert.match(unityMessage({ ...base, launched: false }), /既に Unity エディタで開いています/);
 });
@@ -142,15 +143,15 @@ test('MCP: set_app_launcher / remove_app_launcher の入力スキーマ', () => 
   assert.match(t.description, /kind: 'unity'/);
   assert.match(t.description, /\{cwd\} は作業フォルダ/);
   assert.deepEqual(t.required, ['cwd', 'label']);
-  assert.throws(() => validateArgs('set_app_launcher', { cwd: 'D:\\x', label: 'T', kind: 'exe' }), /使えない値/);
-  assert.equal(validateArgs('set_app_launcher', { cwd: 'D:\\x', label: 'T', kind: 'unity' }).kind, 'unity');
+  assert.throws(() => validateArgs('set_app_launcher', { cwd: P('D:\\x'), label: 'T', kind: 'exe' }), /使えない値/);
+  assert.equal(validateArgs('set_app_launcher', { cwd: P('D:\\x'), label: 'T', kind: 'unity' }).kind, 'unity');
 });
 
 test('MCP: cwd からセッションを推定してボタンを登録 / 削除する', async () => {
   const calls: any[] = [];
   let list: AppLauncher[] = [];
   const d: any = {
-    sessions: () => ({ a: S('a', 'D:\\WorkTree\\demo\\wt-01'), b: S('b', 'D:\\other') }),
+    sessions: () => ({ a: S('a', P('D:\\WorkTree\\demo\\wt-01')), b: S('b', P('D:\\other')) }),
     launchers: {
       upsert: (sid: string, spec: any) => {
         calls.push(['upsert', sid, spec]);
@@ -164,17 +165,17 @@ test('MCP: cwd からセッションを推定してボタンを登録 / 削除�
       },
     },
   };
-  const r: any = await callTool('set_app_launcher', { cwd: 'D:\\WorkTree\\demo\\wt-01\\tools', label: 'マップ', command: 'npm run map' }, d, { sessionId: null });
+  const r: any = await callTool('set_app_launcher', { cwd: P('D:\\WorkTree\\demo\\wt-01\\tools'), label: 'マップ', command: 'npm run map' }, d, { sessionId: null });
   assert.deepEqual(calls[0], ['upsert', 'a', { label: 'マップ', kind: 'command', command: 'npm run map' }]);
   assert.equal(r.launchers[0].addedBy, 'claude');
-  const u: any = await callTool('set_app_launcher', { cwd: 'D:\\WorkTree\\demo\\wt-01', label: 'Unity', kind: 'unity', command: 'ignored' }, d, { sessionId: null });
+  const u: any = await callTool('set_app_launcher', { cwd: P('D:\\WorkTree\\demo\\wt-01'), label: 'Unity', kind: 'unity', command: 'ignored' }, d, { sessionId: null });
   assert.deepEqual(calls[1][2], { label: 'Unity', kind: 'unity', command: null });
   assert.equal(u.launchers.length, 2);
-  const rm: any = await callTool('remove_app_launcher', { cwd: 'D:\\WorkTree\\demo\\wt-01', label: 'マップ' }, d, { sessionId: null });
+  const rm: any = await callTool('remove_app_launcher', { cwd: P('D:\\WorkTree\\demo\\wt-01'), label: 'マップ' }, d, { sessionId: null });
   assert.deepEqual(rm.launchers.map((x: any) => x.label), ['Unity']);
-  await assert.rejects(() => callTool('set_app_launcher', { cwd: 'D:\\nowhere', label: 'X', command: 'y' }, d, { sessionId: null }), /セッションが見つかりません/);
+  await assert.rejects(() => callTool('set_app_launcher', { cwd: P('D:\\nowhere'), label: 'X', command: 'y' }, d, { sessionId: null }), /セッションが見つかりません/);
   // command 無しの command は検証で 400
-  await assert.rejects(() => callTool('set_app_launcher', { cwd: 'D:\\other', label: 'X' }, d, { sessionId: null }), /command/);
+  await assert.rejects(() => callTool('set_app_launcher', { cwd: P('D:\\other'), label: 'X' }, d, { sessionId: null }), /command/);
 });
 
 void Promise.all(pending).then(() => console.log(`\n${passed} passed${process.exitCode ? ', FAILED' : ''}`));

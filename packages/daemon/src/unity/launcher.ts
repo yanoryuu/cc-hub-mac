@@ -3,11 +3,13 @@
 // - 既にそのプロジェクトを開いているエディタがあれば、新しくは起動しない(同じプロジェクトを 2 つ開くと Unity が拒否する)
 // - 起動したエディタは CC Hub から切り離す(CC Hub を再起動しても閉じない)
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import type { UnityStatus } from '@cc-hub/shared';
 import { HttpError } from '../util';
 import { cleanEnv, run } from '../repo/exec';
+import { IS_WIN } from '../platform';
 
 const VERSION_FILE = path.join('ProjectSettings', 'ProjectVersion.txt');
 
@@ -29,12 +31,17 @@ export function parseEditorVersion(text: string): string | null {
   return m ? m[1] : null;
 }
 
-/** エディタを探すフォルダ(<root>\<version>\Editor\Unity.exe) */
+/** エディタの実行ファイル(Windows: <root>\<version>\Editor\Unity.exe / macOS: <root>/<version>/Unity.app/Contents/MacOS/Unity) */
+const editorExe = (root: string, version: string): string =>
+  IS_WIN ? path.join(root, version, 'Editor', 'Unity.exe') : path.join(root, version, 'Unity.app', 'Contents', 'MacOS', 'Unity');
+
+/** エディタを探すフォルダ */
 export function editorRoots(env: NodeJS.ProcessEnv = process.env): string[] {
-  const roots = [path.join(env.ProgramFiles || 'C:\\Program Files', 'Unity', 'Hub', 'Editor')];
+  const roots = IS_WIN ? [path.join(env.ProgramFiles || 'C:\\Program Files', 'Unity', 'Hub', 'Editor')] : ['/Applications/Unity/Hub/Editor'];
   // Unity Hub の「インストール先」を変えている場合
   try {
-    const p = JSON.parse(fs.readFileSync(path.join(env.APPDATA || '', 'UnityHub', 'secondaryInstallPath.json'), 'utf8'));
+    const hubDir = IS_WIN ? path.join(env.APPDATA || '', 'UnityHub') : path.join(os.homedir(), 'Library', 'Application Support', 'UnityHub');
+    const p = JSON.parse(fs.readFileSync(path.join(hubDir, 'secondaryInstallPath.json'), 'utf8'));
     if (typeof p === 'string' && p.trim()) roots.push(p.trim());
   } catch {
     /* 無い */
@@ -46,7 +53,7 @@ export function installedVersions(roots = editorRoots()): string[] {
   const out = new Set<string>();
   for (const r of roots) {
     try {
-      for (const v of fs.readdirSync(r)) if (fs.existsSync(path.join(r, v, 'Editor', 'Unity.exe'))) out.add(v);
+      for (const v of fs.readdirSync(r)) if (fs.existsSync(editorExe(r, v))) out.add(v);
     } catch {
       /* 無い */
     }
@@ -56,7 +63,7 @@ export function installedVersions(roots = editorRoots()): string[] {
 
 export function editorPath(version: string, roots = editorRoots()): string | null {
   for (const r of roots) {
-    const exe = path.join(r, version, 'Editor', 'Unity.exe');
+    const exe = editorExe(r, version);
     if (fs.existsSync(exe)) return exe;
   }
   return null;
@@ -72,6 +79,17 @@ const norm = (p: string) => path.resolve(p).replace(/[\\/]+$/, '').toLowerCase()
 
 /** そのプロジェクトを開いている Unity エディタのプロセス ID(無ければ null) */
 async function runningPid(project: string): Promise<number | null> {
+  if (!IS_WIN) {
+    // macOS: ps のコマンドラインから -projectPath を探す(エディタ本体のみ。Hub や AssetImportWorker は除く)
+    const r = await run('/bin/ps', ['-axww', '-o', 'pid=,command='], { timeout: 20_000 });
+    for (const line of r.stdout.split('\n')) {
+      const m = /^\s*(\d+)\s+(.*)$/.exec(line);
+      if (!m || !/\/Unity\.app\/Contents\/MacOS\/Unity\s/.test(m[2]) || /-batchmode|AssetImportWorker/i.test(m[2])) continue;
+      const arg = projectPathArg(m[2]);
+      if (arg && norm(arg) === norm(project)) return Number(m[1]) || null;
+    }
+    return null;
+  }
   const r = await run(
     'powershell.exe',
     [

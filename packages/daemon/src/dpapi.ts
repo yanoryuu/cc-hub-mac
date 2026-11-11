@@ -1,8 +1,15 @@
-// 秘密情報(サーバーのパスワード / Discord の Webhook URL)の暗号化。Windows DPAPI(CurrentUser)を PowerShell で呼ぶ。
-// - 秘密はコマンドラインに載せない: 平文 / 暗号文とも base64 にして標準入力で渡し、結果を標準出力で受け取る
-// - ログに中身を出さない(エラー時も PowerShell の出力は要約だけ)
+// 秘密情報(サーバーのパスワード / Discord の Webhook URL)の暗号化。
+// - Windows: DPAPI(CurrentUser)を PowerShell で呼ぶ
+// - macOS: AES-256-GCM。鍵はキーチェーン(security コマンド)に置く。キーチェーンが使えなければ、データフォルダの 0600 のファイル
+// - 秘密はコマンドラインに載せない(Windows は標準入力で渡す。macOS の鍵は security の引数に出るが暗号文・平文は出ない)
+// - ログに中身を出さない(エラー時も出力は要約だけ)
 // - 復号した値は呼び出し側で使い終わったら捨てること(長く保持しない)
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { IS_WIN } from './platform';
 
 const PS_TIMEOUT_MS = 20_000;
 
@@ -74,3 +81,76 @@ export const dpapi: SecretBox = {
     return Buffer.from(b64, 'base64').toString('utf8');
   },
 };
+
+// ------------------------------------------------------------ macOS: キーチェーンの鍵 + AES-256-GCM
+const KEYCHAIN_SERVICE = 'cc-hub';
+const KEYCHAIN_ACCOUNT = 'secrets-key';
+const KEY_PREFIX = 'v1:';
+
+function keyFile(): string {
+  const dir = process.env.CC_HUB_DATA_DIR || path.join(os.homedir(), 'Library', 'Application Support', 'cc-hub');
+  return path.join(dir, 'secrets-key');
+}
+
+function keychainGet(): string | null {
+  const r = spawnSync('security', ['find-generic-password', '-s', KEYCHAIN_SERVICE, '-a', KEYCHAIN_ACCOUNT, '-w'], { encoding: 'utf8' });
+  const s = (r.stdout ?? '').trim();
+  return r.status === 0 && /^[0-9a-f]{64}$/.test(s) ? s : null;
+}
+
+function keychainSet(hex: string): boolean {
+  const r = spawnSync('security', ['add-generic-password', '-U', '-s', KEYCHAIN_SERVICE, '-a', KEYCHAIN_ACCOUNT, '-w', hex], { encoding: 'utf8' });
+  return r.status === 0;
+}
+
+let cachedKey: Buffer | null = null;
+
+/** 暗号鍵(32 バイト)。キーチェーン → 鍵ファイルの順に探し、無ければ作る */
+function masterKey(): Buffer {
+  if (cachedKey) return cachedKey;
+  // テストや CI でキーチェーンを使わないとき
+  const useKeychain = process.env.CC_HUB_NO_KEYCHAIN !== '1';
+  let hex = useKeychain ? keychainGet() : null;
+  if (!hex) {
+    try {
+      const f = fs.readFileSync(keyFile(), 'utf8').trim();
+      if (/^[0-9a-f]{64}$/.test(f)) hex = f;
+    } catch {
+      /* 無ければ作る */
+    }
+  }
+  if (!hex) {
+    hex = crypto.randomBytes(32).toString('hex');
+    if (!(useKeychain && keychainSet(hex))) {
+      fs.mkdirSync(path.dirname(keyFile()), { recursive: true });
+      fs.writeFileSync(keyFile(), hex, { mode: 0o600 });
+    }
+  }
+  cachedKey = Buffer.from(hex, 'hex');
+  return cachedKey;
+}
+
+/** macOS: 暗号文は "v1:" + base64(iv 12 + tag 16 + 本文) */
+export const keychainBox: SecretBox = {
+  async protect(plain: string): Promise<string> {
+    const iv = crypto.randomBytes(12);
+    const c = crypto.createCipheriv('aes-256-gcm', masterKey(), iv);
+    const body = Buffer.concat([c.update(String(plain), 'utf8'), c.final()]);
+    return KEY_PREFIX + Buffer.concat([iv, c.getAuthTag(), body]).toString('base64');
+  },
+  async unprotect(blob: string): Promise<string> {
+    const s = String(blob);
+    if (!s.startsWith(KEY_PREFIX)) throw new Error('復号に失敗しました(この Mac で暗号化されたものではありません。設定し直してください)');
+    const raw = Buffer.from(s.slice(KEY_PREFIX.length), 'base64');
+    try {
+      const d = crypto.createDecipheriv('aes-256-gcm', masterKey(), raw.subarray(0, 12));
+      d.setAuthTag(raw.subarray(12, 28));
+      return Buffer.concat([d.update(raw.subarray(28)), d.final()]).toString('utf8');
+    } catch {
+      throw new Error('復号に失敗しました(鍵が違うか、データが壊れています。設定し直してください)');
+    }
+  },
+};
+
+/** このマシンの暗号化(main.ts が使う) */
+export const secrets: SecretBox = IS_WIN ? dpapi : keychainBox;

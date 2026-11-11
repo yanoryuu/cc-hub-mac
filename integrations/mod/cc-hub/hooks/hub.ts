@@ -30,19 +30,22 @@ export async function loadHub($: EngineInterface): Promise<Hub | null> {
   const custom = await $.env.get('CC_HUB_DATA_DIR')
   const appData = await $.env.get('APPDATA')
   const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME'))
-  const dir = custom || (appData ? `${appData}\\cc-hub` : null)
+  // Windows: %APPDATA%\cc-hub / macOS: ~/Library/Application Support/cc-hub
+  const sep = appData ? '\\' : '/'
+  const dir = custom || (appData ? `${appData}\\cc-hub` : home ? `${home}/Library/Application Support/cc-hub` : null)
   if (!dir) return null
-  const apiToken = (await readText($, `${dir}\\local-token`))?.trim() ?? ''
-  const ingestToken = (await readText($, `${dir}\\ingest-token`))?.trim() ?? ''
+  const join = (...p: string[]) => [dir, ...p].join(custom ? (/\\/.test(custom) ? '\\' : '/') : sep)
+  const apiToken = (await readText($, join('local-token')))?.trim() ?? ''
+  const ingestToken = (await readText($, join('ingest-token')))?.trim() ?? ''
   if (!apiToken) return null
   let port = DEFAULT_PORT
   try {
-    const cfg = JSON.parse((await readText($, `${dir}\\config.json`)) ?? '{}') as { port?: unknown }
+    const cfg = JSON.parse((await readText($, join('config.json'))) ?? '{}') as { port?: unknown }
     if (Number(cfg.port)) port = Number(cfg.port)
   } catch {
     /* 既定のポート */
   }
-  const settings = home ? await readText($, `${home}\\.claude\\settings.json`) : null
+  const settings = home ? await readText($, `${home}${home.includes('\\') ? '\\' : '/'}.claude${home.includes('\\') ? '\\' : '/'}settings.json`) : null
   return {
     base: `http://127.0.0.1:${port}`,
     apiToken,

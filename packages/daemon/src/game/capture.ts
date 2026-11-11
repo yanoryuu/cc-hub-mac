@@ -5,6 +5,7 @@ import path from 'node:path';
 import type http from 'node:http';
 import { spawn, execFile, type ChildProcess } from 'node:child_process';
 import { json, readBody } from '../util';
+import { IS_WIN } from '../platform';
 
 // dist/main.js から見て ../native/gamecap.exe
 const GAMECAP = path.join(__dirname, '..', 'native', 'gamecap.exe');
@@ -92,6 +93,12 @@ function listGameWindows(): Promise<unknown[]> {
 /** /game/* を処理したら true(認証済みの前提で呼ぶ) */
 export async function handleGame(req: http.IncomingMessage, res: http.ServerResponse, url: URL): Promise<boolean> {
   const p = url.pathname;
+  // gamecap.exe は Windows 専用(ウィンドウのキャプチャと入力の注入)。macOS では未対応
+  if (!IS_WIN && p.startsWith('/game/')) {
+    if (p === '/game/windows' && req.method === 'GET') json(res, 200, { ok: true, windows: [] });
+    else json(res, 501, { ok: false, error: 'ゲーム画面の共有は Windows 版のみ対応しています' });
+    return true;
+  }
   if (p === '/game/windows' && req.method === 'GET') {
     const windows = await listGameWindows();
     json(res, 200, { ok: true, windows });

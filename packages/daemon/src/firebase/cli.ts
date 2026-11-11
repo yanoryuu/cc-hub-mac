@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { cleanEnv } from '../repo/exec';
+import { IS_WIN, killTree as killProcTree } from '../platform';
 
 export interface CliResult {
   code: number;
@@ -67,7 +68,7 @@ function findOnPath(env: NodeJS.ProcessEnv): string | null {
 }
 
 /** 実行するコマンドを決める。firebasePath: '' = 自動 / .js 系 = node / .cmd = 隣の本体を node / それ以外 = 直接 */
-export function resolveFirebaseCommand(firebasePath: string, env: NodeJS.ProcessEnv = process.env): ResolvedCommand {
+export function resolveFirebaseCommand(firebasePath: string, env: NodeJS.ProcessEnv = process.env, win = IS_WIN): ResolvedCommand {
   const node = process.execPath;
   const p = String(firebasePath ?? '').trim();
   if (p && /\.(c|m)?js$/i.test(p)) return { file: node, prefix: [p], viaCmd: false };
@@ -77,6 +78,8 @@ export function resolveFirebaseCommand(firebasePath: string, env: NodeJS.Process
     return { file: env.ComSpec || 'cmd.exe', prefix: ['/d', '/c', p], viaCmd: true };
   }
   if (p && p.toLowerCase() !== 'firebase') return { file: p, prefix: [], viaCmd: false };
+  // macOS: PATH の firebase をそのまま実行する(シェルを通さない)
+  if (!win) return { file: 'firebase', prefix: [], viaCmd: false };
   // 自動: npm のグローバル → PATH の firebase.cmd の隣 → PATH の firebase.exe → cmd /c firebase
   const appData = env.APPDATA;
   if (appData) {
@@ -119,12 +122,11 @@ export function createRunner(firebasePath: string): FirebaseRunner {
         cwd: o.cwd,
         env: cleanEnv({ NO_COLOR: '1', FORCE_COLOR: '0', CI: '1', FIREBASE_CLI_DISABLE_UPDATE_CHECK: 'true' }),
         windowsHide: true,
+        detached: !IS_WIN,
         stdio: ['ignore', 'pipe', 'pipe'],
       });
       const killTree = () => {
-        if (child.pid && child.exitCode == null) {
-          spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' }).on('error', () => undefined);
-        }
+        if (child.pid && child.exitCode == null) killProcTree(child.pid, { group: true });
       };
       kill = killTree;
       const timer = setTimeout(() => {

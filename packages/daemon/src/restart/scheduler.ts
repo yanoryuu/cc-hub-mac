@@ -8,6 +8,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import type { RestartStatus } from '@cc-hub/shared';
 import { HttpError } from '../util';
+import { IS_WIN } from '../platform';
 
 const CHECK_MS = 10_000;
 /** 作業中のものが無い状態がこの回数続いたら再起動する */
@@ -34,6 +35,15 @@ export interface RestartDeps {
  * 外側の powershell が Start-Process で内側を起動してすぐ終わる形にする
  */
 export function launchDeploy(script: string, build: boolean, logFile: string): void {
+  if (!IS_WIN) {
+    // macOS: deploy.sh を新しいセッション(setsid 相当の detached)で実行する。このデーモンが止められても続く
+    const fd = fs.openSync(logFile, 'w');
+    const child = spawn('/bin/bash', [script, ...(build ? [] : ['--skip-build'])], { detached: true, stdio: ['ignore', fd, fd] });
+    child.on('error', (e) => console.error(`[restart] deploy.sh を起動できません: ${e.message}`));
+    child.unref();
+    fs.closeSync(fd);
+    return;
+  }
   const q = (s: string) => s.replace(/'/g, "''");
   const inner = `& '${q(script)}'${build ? '' : ' -SkipBuild'} *> '${q(logFile)}'`;
   const outer = `Start-Process -FilePath powershell.exe -WindowStyle Hidden -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-Command','${q(inner)}')`;

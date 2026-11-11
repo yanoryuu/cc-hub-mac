@@ -29,6 +29,7 @@ const HOME = process.env.USERPROFILE || os.homedir();
 
 function dataDir() {
   if (process.env.CC_HUB_DATA_DIR) return path.resolve(process.env.CC_HUB_DATA_DIR);
+  if (process.platform === 'darwin') return path.join(HOME, 'Library', 'Application Support', 'cc-hub');
   const appData = process.env.APPDATA || path.join(HOME, 'AppData', 'Roaming');
   return path.join(appData, 'cc-hub');
 }

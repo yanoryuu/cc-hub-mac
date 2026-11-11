@@ -2,7 +2,7 @@
 // インストール版に同梱するデーモン一式を build/hub に集める(electron-builder の extraResources → resources/hub)。
 //
 //   build/hub/
-//     cc-hub-node.exe                 … いま使っている node.exe の複製(ネイティブモジュールはこの node 用にビルド済みのものをそのまま使う)
+//     cc-hub-node[.exe]               … いま使っている node の複製(ネイティブモジュールはこの node 用にビルド済みのものをそのまま使う)
 //     packages/daemon/dist/main.js    … デーモン本体(esbuild のバンドル)
 //     packages/daemon/native/         … gamecap.exe
 //     packages/daemon/package.json    … 名前だけ(web/dist やアイコンを探す目印)
@@ -78,19 +78,49 @@ function closure() {
   return [...found.keys()];
 }
 
+/**
+ * 同梱する node。Windows はいま使っている node.exe。
+ * macOS の Homebrew の node は libnode.dylib などに動的リンクしていて単体では動かないので、
+ * 同じバージョン(= ネイティブモジュールの ABI が同じ)の公式バイナリを nodejs.org から取ってくる(build/node-cache に保存)。
+ * CC_HUB_NODE で単体で動く node のパスを指定してもよい
+ */
+function nodeBinary() {
+  if (process.env.CC_HUB_NODE) return process.env.CC_HUB_NODE;
+  if (process.platform !== 'darwin') return process.execPath;
+  const { execFileSync } = require('child_process');
+  const deps = execFileSync('otool', ['-L', fs.realpathSync(process.execPath)], { encoding: 'utf8' });
+  if (!/@rpath\/libnode|\/opt\/homebrew\/|\/usr\/local\/opt\//.test(deps)) return process.execPath;
+  const name = `node-${process.version}-darwin-${process.arch}`;
+  const cache = path.join(ROOT, 'build', 'node-cache');
+  const bin = path.join(cache, name, 'bin', 'node');
+  if (!fs.existsSync(bin)) {
+    fs.mkdirSync(cache, { recursive: true });
+    const tgz = path.join(cache, `${name}.tar.gz`);
+    const url = `https://nodejs.org/dist/${process.version}/${name}.tar.gz`;
+    console.log(`同梱用の node を取得: ${url}`);
+    execFileSync('curl', ['-fsSL', '-o', tgz, url], { stdio: 'inherit' });
+    execFileSync('tar', ['-xzf', tgz, '-C', cache, `${name}/bin/node`], { stdio: 'inherit' });
+    fs.rmSync(tgz, { force: true });
+  }
+  return bin;
+}
+
 function main() {
   fs.rmSync(OUT, { recursive: true, force: true });
   fs.mkdirSync(OUT, { recursive: true });
 
   // node
-  fs.copyFileSync(process.execPath, path.join(OUT, 'cc-hub-node.exe'));
+  const nodeName = process.platform === 'win32' ? 'cc-hub-node.exe' : 'cc-hub-node';
+  fs.copyFileSync(nodeBinary(), path.join(OUT, nodeName));
+  fs.chmodSync(path.join(OUT, nodeName), 0o755);
   fs.writeFileSync(path.join(OUT, 'node-version.txt'), process.version + '\n');
 
   // デーモン・Web UI・アイコン・連携
   const daemon = path.join(OUT, 'packages', 'daemon');
   fs.mkdirSync(path.join(daemon, 'dist'), { recursive: true });
   fs.copyFileSync(need(path.join(ROOT, 'packages', 'daemon', 'dist', 'main.js')), path.join(daemon, 'dist', 'main.js'));
-  copy(need(path.join(ROOT, 'packages', 'daemon', 'native')), path.join(daemon, 'native'), (p) => /\.cs$/i.test(p));
+  // gamecap.exe は Windows 専用
+  if (process.platform === 'win32') copy(need(path.join(ROOT, 'packages', 'daemon', 'native')), path.join(daemon, 'native'), (p) => /\.cs$/i.test(p));
   fs.writeFileSync(path.join(daemon, 'package.json'), JSON.stringify({ name: '@cc-hub/daemon', private: true, main: 'dist/main.js' }, null, 2));
   copy(need(path.join(ROOT, 'packages', 'web', 'dist')), path.join(OUT, 'packages', 'web', 'dist'));
   copy(need(path.join(ROOT, 'packages', 'desktop', 'assets')), path.join(OUT, 'packages', 'desktop', 'assets'));
@@ -112,7 +142,8 @@ function main() {
   }
   // node-pty: 他の OS 用のバイナリは要らない
   for (const d of fs.readdirSync(path.join(OUT, 'node_modules', '@lydell'))) {
-    if (/^node-pty-/.test(d) && d !== 'node-pty-win32-x64') fs.rmSync(path.join(OUT, 'node_modules', '@lydell', d), { recursive: true, force: true });
+    const keep = `node-pty-${process.platform}-${process.arch}`;
+    if (/^node-pty-/.test(d) && d !== keep) fs.rmSync(path.join(OUT, 'node_modules', '@lydell', d), { recursive: true, force: true });
   }
 
   let bytes = 0;

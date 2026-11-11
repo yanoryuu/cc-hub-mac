@@ -8,7 +8,7 @@ import * as path from 'node:path';
 export interface SetupPaths {
   /** resources/hub */
   hubRoot: string;
-  /** 同梱の node(cc-hub-node.exe) */
+  /** 同梱の node(cc-hub-node.exe / macOS は cc-hub-node) */
   node: string;
   dataDir: string;
   version: string;
@@ -40,6 +40,12 @@ export function setupDone(p: SetupPaths): boolean {
 
 /** PATH から実行ファイルを探す(where) */
 function which(cmd: string): string | null {
+  if (process.platform === 'darwin') {
+    // Finder / Dock から起動したアプリの PATH は短いので、ログインシェル経由で探す(.zprofile / .zshrc の PATH を反映)
+    const r = spawnSync(process.env.SHELL || '/bin/zsh', ['-lic', `command -v ${cmd}`], { encoding: 'utf8', timeout: 10_000 });
+    const p = r.stdout.split(/\r?\n/).map((s) => s.trim()).filter((s) => s.startsWith('/')).pop();
+    return r.status === 0 && p ? p : null;
+  }
   const r = spawnSync('where', [cmd], { encoding: 'utf8', windowsHide: true });
   if (r.status !== 0) return null;
   return r.stdout.split(/\r?\n/).map((s) => s.trim()).find(Boolean) ?? null;
@@ -53,7 +59,7 @@ export function findClaude(dataDir: string): string | null {
   } catch {
     /* 次へ */
   }
-  const local = path.join(HOME, '.local', 'bin', 'claude.exe');
+  const local = path.join(HOME, '.local', 'bin', process.platform === 'win32' ? 'claude.exe' : 'claude');
   if (fs.existsSync(local)) return local;
   return which('claude');
 }
@@ -63,12 +69,19 @@ export function missingPrereqs(dataDir: string): SetupResult['missing'] {
   if (!findClaude(dataDir)) {
     out.push({
       name: 'Claude Code',
-      how: 'PowerShell で次を実行してください:\nirm https://claude.ai/install.ps1 | iex\n実行後、一度 claude を起動してログインしてください。',
+      how:
+        process.platform === 'darwin'
+          ? 'ターミナルで次を実行してください:\ncurl -fsSL https://claude.ai/install.sh | bash\n実行後、一度 claude を起動してログインしてください。'
+          : 'PowerShell で次を実行してください:\nirm https://claude.ai/install.ps1 | iex\n実行後、一度 claude を起動してログインしてください。',
       url: 'https://docs.claude.com/en/docs/claude-code/setup',
     });
   }
   if (!which('git')) {
-    out.push({ name: 'Git', how: 'Git for Windows をインストールしてください(設定はすべて既定のままで構いません)。', url: 'https://git-scm.com/download/win' });
+    out.push(
+      process.platform === 'darwin'
+        ? { name: 'Git', how: 'ターミナルで xcode-select --install を実行するか、Homebrew で brew install git を実行してください。', url: 'https://git-scm.com/download/mac' }
+        : { name: 'Git', how: 'Git for Windows をインストールしてください(設定はすべて既定のままで構いません)。', url: 'https://git-scm.com/download/win' },
+    );
   }
   return out;
 }
@@ -76,7 +89,7 @@ export function missingPrereqs(dataDir: string): SetupResult['missing'] {
 /** 同梱の node でスクリプトを実行する(Claude Code の中から呼ばれても会話ログが壊れないよう CLAUDE* を外す) */
 function runNode(p: SetupPaths, args: string[], log: (s: string) => void): boolean {
   const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^CLAUDE/i.test(k)));
-  if (process.env.CC_HUB_HOME) env.USERPROFILE = process.env.CC_HUB_HOME;
+  if (process.env.CC_HUB_HOME) env.USERPROFILE = env.HOME = process.env.CC_HUB_HOME;
   const r = spawnSync(p.node, args, { encoding: 'utf8', windowsHide: true, env, timeout: 120_000 });
   log(`$ ${path.basename(args[0])} ${args.slice(1).join(' ')}\n${(r.stdout || '').trim()}\n${(r.stderr || '').trim()}`.trim());
   return r.status === 0;

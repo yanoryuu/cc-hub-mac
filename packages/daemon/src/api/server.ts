@@ -571,7 +571,7 @@ async function handle(d: ServerDeps, req: http.IncomingMessage, res: http.Server
 
   if (p === '/api/mcp' && method === 'GET') {
     // cwd 省略時はホーム(ユーザースコープの MCP だけが見える)
-    const cwd = url.searchParams.get('cwd') || process.env.USERPROFILE || require('node:os').homedir();
+    const cwd = url.searchParams.get('cwd') || process.env.USERPROFILE || process.env.HOME || require('node:os').homedir();
     if (!isDir(cwd)) throw new HttpError(400, `ディレクトリが存在しません: ${cwd}`);
     const refresh = /^(1|true)$/i.test(url.searchParams.get('refresh') || '');
     const r = await listMcp(d.claudePath, path.resolve(cwd), refresh);

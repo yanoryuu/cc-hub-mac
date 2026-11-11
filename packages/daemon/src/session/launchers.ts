@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import type { AppLauncher, UnityStatus } from '@cc-hub/shared';
 import { HttpError } from '../util';
+import { IS_WIN } from '../platform';
 
 export const LAUNCHER_MAX = 10;
 export const LAUNCHER_LABEL_MAX = 30;
@@ -130,14 +131,17 @@ export function spawnDetached(commandLine: string, cwd: string, watchMs = LAUNCH
     const timer = setTimeout(() => finish(null), watchMs);
     let child;
     try {
-      child = spawn(process.env.ComSpec || 'cmd.exe', startArgs(commandLine), {
-        cwd,
-        detached: true,
-        stdio: 'ignore',
-        windowsHide: false,
-        windowsVerbatimArguments: true,
-        env: launcherEnv(),
-      });
+      // macOS: sh -c でそのまま実行(GUI アプリなら `open -a Foo` のように書く)。Windows: cmd の start で切り離す
+      child = IS_WIN
+        ? spawn(process.env.ComSpec || 'cmd.exe', startArgs(commandLine), {
+            cwd,
+            detached: true,
+            stdio: 'ignore',
+            windowsHide: false,
+            windowsVerbatimArguments: true,
+            env: launcherEnv(),
+          })
+        : spawn('/bin/sh', ['-c', commandLine], { cwd, detached: true, stdio: 'ignore', env: launcherEnv() });
     } catch (e) {
       finish(`起動できませんでした: ${(e as Error).message}`);
       return;

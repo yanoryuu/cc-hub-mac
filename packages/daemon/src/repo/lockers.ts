@@ -3,6 +3,7 @@
 // (カレントディレクトリだけでつかんでいるプロセスは Windows では外から分からないので対象外)
 import type { WorktreeLocker } from '@cc-hub/shared';
 import { run } from './exec';
+import { IS_WIN } from '../platform';
 
 export interface ProcRow {
   pid: number;
@@ -34,7 +35,7 @@ function containsPath(s: string, needle: string): boolean {
 
 function describe(p: ProcRow): Pick<WorktreeLocker, 'kind' | 'label'> {
   const name = p.name.toLowerCase();
-  if (name === 'unity.exe') {
+  if (name === 'unity.exe' || name === 'unity') {
     if (/-batchmode/i.test(p.cmd) || /AssetImportWorker/i.test(p.cmd)) {
       return { kind: 'unity_worker', label: 'Unity のアセット取り込み(エディタの子プロセス)' };
     }
@@ -50,7 +51,7 @@ export function matchLockers(procs: ProcRow[], dir: string, selfPid = process.pi
   const out: WorktreeLocker[] = [];
   for (const p of procs) {
     // Unity Hub は起動したプロジェクトのパスを引数に持ち続けるが、フォルダはつかまない
-    if (p.pid === selfPid || !p.cmd || /^unity hub\.exe$/i.test(p.name)) continue;
+    if (p.pid === selfPid || !p.cmd || /^unity hub(\.exe)?$/i.test(p.name)) continue;
     const cmd = p.cmd.replace(/\\/g, '/').toLowerCase();
     if (!containsPath(cmd, plain) && !containsPath(cmd, enc)) continue;
     out.push({ pid: p.pid, name: p.name, title: p.title || null, ...describe(p) });
@@ -68,8 +69,26 @@ const PS_SCRIPT = [
   '} | ConvertTo-Json -Compress',
 ].join('\n');
 
+/** macOS: ps の 2 つの出力(pid + comm / pid + command)を ProcRow にする。ウィンドウのタイトルは外から分からないので空 */
+export function parsePs(comms: string, cmds: string): ProcRow[] {
+  const line = (s: string) => s.split('\n').flatMap((l) => {
+    const m = /^\s*(\d+)\s+(.*)$/.exec(l);
+    return m ? [[Number(m[1]), m[2]] as const] : [];
+  });
+  const cmdOf = new Map(line(cmds));
+  // comm はフルパス(…/Unity.app/Contents/MacOS/Unity)なので末尾の名前だけにする
+  return line(comms).map(([pid, comm]) => ({ pid, name: comm.split('/').pop() || comm, cmd: cmdOf.get(pid) ?? '', title: '' }));
+}
+
 /** 動いているプロセスの一覧(読めなければ null) */
 export async function listProcesses(): Promise<ProcRow[] | null> {
+  if (!IS_WIN) {
+    const [a, b] = await Promise.all([
+      run('/bin/ps', ['-axww', '-o', 'pid=,comm='], { timeout: 20_000 }),
+      run('/bin/ps', ['-axww', '-o', 'pid=,command='], { timeout: 20_000 }),
+    ]);
+    return a.code === 0 && b.code === 0 ? parsePs(a.stdout, b.stdout) : null;
+  }
   const r = await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `[Console]::OutputEncoding=[Text.Encoding]::UTF8; ${PS_SCRIPT}`], {
     timeout: 20_000,
   });

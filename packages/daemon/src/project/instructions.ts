@@ -46,6 +46,11 @@ export function keyString(k: ProjectKey): string {
 
 /** パスの正規化(区切り / 末尾 / 大文字小文字を揃える) */
 export function normDir(p: string): string {
+  if (path.sep === '/') {
+    // macOS: 区切りは / のまま。ルート(/)以外は末尾の / を取る
+    const s = path.resolve(p).replace(/\/+$/, '');
+    return (s || '/').toLowerCase();
+  }
   let s = path.resolve(p).replace(/\//g, '\\');
   if (!/^[A-Za-z]:\\$/.test(s)) s = s.replace(/\\+$/, '');
   return s.toLowerCase();

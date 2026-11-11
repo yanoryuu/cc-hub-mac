@@ -30,6 +30,7 @@ const HOME = process.env.USERPROFILE || os.homedir();
 
 function dataDir() {
   if (process.env.CC_HUB_DATA_DIR) return path.resolve(process.env.CC_HUB_DATA_DIR);
+  if (process.platform === 'darwin') return path.join(HOME, 'Library', 'Application Support', 'cc-hub');
   const appData = process.env.APPDATA || path.join(HOME, 'AppData', 'Roaming');
   return path.join(appData, 'cc-hub');
 }
@@ -44,9 +45,10 @@ function readConfig(dir) {
 
 /** firebase CLI(npm のグローバル)があるか */
 function firebaseInstalled() {
+  const dirs = String(process.env.PATH || '').split(path.delimiter).filter(Boolean);
+  if (process.platform !== 'win32') return [...dirs, '/opt/homebrew/bin', '/usr/local/bin'].some((d) => fs.existsSync(path.join(d, 'firebase')));
   const appData = process.env.APPDATA || path.join(HOME, 'AppData', 'Roaming');
   if (fs.existsSync(path.join(appData, 'npm', 'firebase.cmd'))) return true;
-  const dirs = String(process.env.PATH || '').split(path.delimiter).filter(Boolean);
   return dirs.some((d) => fs.existsSync(path.join(d, 'firebase.cmd')) || fs.existsSync(path.join(d, 'firebase.exe')));
 }
 
@@ -59,7 +61,7 @@ function main() {
   const claude = opt('--claude') || cfg.claudePath || 'claude';
   const removeArgs = ['mcp', 'remove', '--scope', 'user', NAME];
   // firebase は .cmd なので cmd /c で起動する(Claude Code は .cmd を直接 spawn できない)
-  const addArgs = ['mcp', 'add', '--scope', 'user', NAME, '--', 'cmd', '/c', 'firebase', 'mcp'];
+  const addArgs = ['mcp', 'add', '--scope', 'user', NAME, '--', ...(process.platform === 'win32' ? ['cmd', '/c', 'firebase', 'mcp'] : ['firebase', 'mcp'])];
   const show = (args) => [claude, ...args].map((a) => (/[\s"]/.test(a) ? `"${a}"` : a)).join(' ');
 
   console.log(`Firebase MCP サーバー: cmd /c firebase mcp(登録名 ${NAME}、ユーザースコープ)`);

@@ -21,7 +21,8 @@ import { ShellManager } from './shell/manager';
 import { SessionDrafts } from './session/drafts';
 import { FolderProjects } from './project/folders';
 import { stopCapture } from './game/capture';
-import { dpapi } from './dpapi';
+import { secrets } from './dpapi';
+import { IS_WIN } from './platform';
 import { NotifyService } from './notify/service';
 import { loadImages } from './notify/images';
 import { DeployService } from './deploy/service';
@@ -63,7 +64,7 @@ function main(): void {
   const firebaseInfo = new FirebaseInfoService(firebaseRun);
   const deploy = new DeployService({
     store,
-    secrets: dpapi,
+    secrets,
     sessionName: (id) => sessions.info(id)?.name ?? null,
     firebase: { run: firebaseRun, info: firebaseInfo },
   });
@@ -71,7 +72,7 @@ function main(): void {
   let ws: WsHub | null = null;
   const notify = new NotifyService({
     store,
-    secrets: dpapi,
+    secrets,
     session: (id) => sessions.info(id),
     desktopClients: () => ws?.desktopCount() ?? 0,
   });
@@ -86,7 +87,7 @@ function main(): void {
   notify.setDeployActions(deploy);
   // セッション中の承認(選択肢)も Discord のボタンで答えられる
   notify.setSessionApprove((id, option) => sessions.approve(id, option));
-  // 再起動の予約: CC Hub のセッションに作業中のものが無くなったら scripts/deploy.ps1 で再起動する
+  // 再起動の予約: CC Hub のセッションに作業中のものが無くなったら scripts/deploy.ps1(macOS は deploy.sh)で再起動する
   // 作業が終わった worktree(セッション停止・変更なし・コミットなし or PR マージ済み)を解放して最新の main に戻す
   const stopAutoRelease = startAutoRelease({
     worktrees: () => Object.values(repos.pool.all()),
@@ -96,7 +97,7 @@ function main(): void {
     release: (sid) => repos.release(sid, 'keep'),
   });
   // インストール版には deploy.ps1 が無い: 新しいデーモンを起動して自分は終了する(ビルドはしない)
-  const deployScript = path.join(__dirname, '..', '..', '..', 'scripts', 'deploy.ps1');
+  const deployScript = path.join(__dirname, '..', '..', '..', 'scripts', IS_WIN ? 'deploy.ps1' : 'deploy.sh');
   let exitForRestart: () => void = () => process.exit(0);
   const restart = new RestartScheduler({
     busy: () => [

@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { parseMcpLine, parseMcpList } from '../src/mcp';
 import { firstTextLine, parseFrontmatter } from '../src/skills';
-import { buildPsCommand, buildTerminalArgv, launcherCommand, psArg, psQuote, terminalEnv, windowTitle } from '../src/session/terminal';
+import { buildMacTerminalArgv, buildPsCommand, buildWinTerminalArgv, launcherCommand, psArg, psQuote, terminalEnv, windowTitle } from '../src/session/terminal';
 import { isAllowedMime, sanitizeAttachmentName } from '../src/session/attach';
 import { activeBackgroundTasks } from '../src/util';
 import { overlaps } from '../src/repo/exec';
@@ -143,8 +143,8 @@ test('PowerShell: コマンドの組み立て', () => {
   );
 });
 
-test('ランチャー: 既定は cmd.exe /c start、偽ランチャーには同じ argv を渡す', () => {
-  const argv = buildTerminalArgv({ name: 'feat "x" & y', cwd: 'D:\\w', claudePath: 'C:\\c.exe', resumeId: 'id', extraArgs: [] });
+test('ランチャー: Windows の既定は cmd.exe /c start、偽ランチャーには同じ argv を渡す', () => {
+  const argv = buildWinTerminalArgv({ name: 'feat "x" & y', cwd: 'D:\\w', claudePath: 'C:\\c.exe', resumeId: 'id', extraArgs: [] });
   assert.deepEqual(argv.slice(0, 7), ['cmd.exe', '/c', 'start', 'CC Hub: feat x y', 'powershell.exe', '-NoExit', '-Command']);
   assert.equal(argv[7], "Set-Location -LiteralPath 'D:\\w'; & 'C:\\c.exe' --resume id");
   assert.deepEqual(launcherCommand('', argv), { file: 'cmd.exe', args: argv.slice(1) });
@@ -152,7 +152,20 @@ test('ランチャー: 既定は cmd.exe /c start、偽ランチャーには同�
   assert.equal(fake.file, process.execPath);
   assert.deepEqual(fake.args, ['D:\\AITEST\\p4\\fake-terminal.cjs', ...argv]);
   assert.equal(windowTitle(''), 'CC Hub:');
-  assert.throws(() => buildTerminalArgv({ name: 'x', cwd: 'D:\\%PATH%\\x', claudePath: 'c', resumeId: 'i', extraArgs: [] }));
+  assert.throws(() => buildWinTerminalArgv({ name: 'x', cwd: 'D:\\%PATH%\\x', claudePath: 'c', resumeId: 'i', extraArgs: [] }));
+});
+
+test('ランチャー: macOS の既定は osascript で Terminal.app(引用の組み立て)', () => {
+  const argv = buildMacTerminalArgv({ name: 'x', cwd: "/Users/me/Work Tree/it's", claudePath: '/Users/me/.local/bin/claude', resumeId: 'id', extraArgs: ['--permission-mode', 'auto', 'a"b'] });
+  assert.deepEqual(argv.slice(0, 5), ['osascript', '-e', 'tell application "Terminal"', '-e', 'activate']);
+  assert.equal(argv[5], '-e');
+  assert.equal(
+    argv[6],
+    `do script "cd '/Users/me/Work Tree/it'\\\\''s' && /Users/me/.local/bin/claude --resume id --permission-mode auto 'a\\"b'"`,
+  );
+  assert.equal(argv[7], '-e');
+  assert.equal(argv[8], 'end tell');
+  assert.throws(() => buildMacTerminalArgv({ name: 'x', cwd: '/a\nb', claudePath: 'c', resumeId: 'i', extraArgs: [] }));
 });
 
 test('ランチャー: 環境変数(CLAUDE* を除き CC_HUB_SESSION を付ける)', () => {
