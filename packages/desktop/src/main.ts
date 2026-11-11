@@ -178,6 +178,14 @@ function installedLocation(): boolean {
   return /^(\/Applications|\/Users\/[^/]+\/Applications)\//.test(process.execPath);
 }
 
+/**
+ * ダイアログはウィンドウに付けて出す。macOS では親の無いダイアログが閉じられるまでアプリ全体の処理を止める
+ * (デーモンの見張り・版の確認・終了ができなくなる)。ウィンドウに付けるとシートになり、止めない
+ */
+function messageBox(o: Electron.MessageBoxOptions): Promise<Electron.MessageBoxReturnValue> {
+  return win && !win.isDestroyed() ? dialog.showMessageBox(win, o) : dialog.showMessageBox(o);
+}
+
 async function firstRunSetup(): Promise<void> {
   if (settingUp || setupDone(setupPaths())) return;
   if (!installedLocation()) {
@@ -185,16 +193,18 @@ async function firstRunSetup(): Promise<void> {
     return;
   }
   settingUp = true;
+  // 前のバージョンで設定済みなら更新(知らせは出さない)。初めてのときだけ「連携しました」を出す
+  const upgrading = fs.existsSync(path.join(dataDir, 'setup.json'));
   try {
     const r = runSetup(setupPaths());
     if (r.missing.length) await showMissing(r.missing);
     else if (r.errors.length) {
-      await dialog.showMessageBox({
+      await messageBox({
         type: 'warning', title: 'CC Hub', message: 'Claude Code との連携の設定で失敗したものがあります',
         detail: `${r.errors.join('\n')}\n\n詳しくは ${path.join(dataDir, 'setup.log')} を見てください。次に起動したときにもう一度試します。`,
       });
-    } else {
-      await dialog.showMessageBox({
+    } else if (!upgrading) {
+      await messageBox({
         type: 'info', title: 'CC Hub', message: 'Claude Code と連携しました',
         detail: 'CC Hub から起動したセッションに加えて、ターミナルや VS Code で使っている Claude Code もここに表示されます(起動し直したものから)。',
       });
@@ -205,7 +215,7 @@ async function firstRunSetup(): Promise<void> {
 }
 
 async function showMissing(missing: SetupResult['missing']): Promise<void> {
-  const r = await dialog.showMessageBox({
+  const r = await messageBox({
     type: 'warning', title: 'CC Hub', message: `${missing.map((m) => m.name).join(' と ')} が見つかりません`,
     detail: `${missing.map((m) => `■ ${m.name}\n${m.how}`).join('\n\n')}\n\nインストールしたら、トレイの「再読み込み」か CC Hub の起動し直しで設定を続けます。`,
     buttons: [...missing.map((m) => `${m.name} の入手方法を開く`), '閉じる'],
