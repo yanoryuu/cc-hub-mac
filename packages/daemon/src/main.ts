@@ -35,7 +35,7 @@ import { IDLE_CHECK_MS } from './session/idlestop';
 import { createRunner } from './firebase/cli';
 import { FirebaseInfoService } from './firebase/info';
 
-const VERSION = '0.2.1';
+const VERSION = '0.2.2';
 
 function main(): void {
   // macOS: アプリから起動したときの短い PATH を補い、git の GitHub 認証を gh に任せる(子プロセスにも効く)
