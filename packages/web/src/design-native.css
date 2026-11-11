@@ -1,0 +1,218 @@
+/* デザイン C: ネイティブ macOS(html[data-design='native'])
+   - Xcode / Mail のような純正アプリ風: 端まである半透明のサイドバー、ツールバー一体のタイトルバー、右側のインスペクタ
+   - 色はシステムの意味色(labelColor / separatorColor / controlAccentColor)に合わせ、文字は AA を満たす値に寄せる
+   - 選択は灰色(入力欄にフォーカスがあるときの macOS の見え方)、承認待ちだけオレンジ */
+
+/* ---------- 色 ---------- */
+html[data-design='native'][data-scheme='light'] {
+  --bg: #ffffff;
+  --panel: #f5f5f7;
+  --panel-2: #ececf0;
+  --panel-3: #e3e3e8;
+  --border: rgba(0, 0, 0, 0.1);
+  --border-2: rgba(0, 0, 0, 0.16);
+  --border-input: rgba(0, 0, 0, 0.22);
+  --fg: #1d1d1f;
+  --fg-2: #3a3a3f;
+  --muted: #636368;
+  --dim: #6e6e73;
+  --hover: rgba(0, 0, 0, 0.05);
+  --accent: #0062cc;
+  --accent-bg: rgba(0, 122, 255, 0.1);
+  --primary: #0071e3;
+  --primary-fg: #ffffff;
+  --primary-hover: #0068d1;
+  --st-running: #007aff;
+  --st-starting: #4d9fff;
+  --st-approval: #ff9500;
+  --st-approval-fg: #b14b00;
+  --st-approval-bg: rgba(255, 149, 0, 0.14);
+  --on-approval: #2b1700;
+  --st-input: #248a3d;
+  --st-idle: #8e8e93;
+  --st-error: #e0291e;
+  --st-stopped: #8e8e93;
+  --add: #1f7a35;
+  --del: #c4141a;
+  --approve: #0071e3;
+  --approve-fg: #ffffff;
+  --deny-fg: #c4141a;
+  --control: #ffffff;
+  --selection: rgba(0, 0, 0, 0.09);
+  --sidebar-glass: rgba(236, 236, 241, 0.62);
+  --toolbar: rgba(255, 255, 255, 0.92);
+  color-scheme: light;
+}
+html[data-design='native'][data-scheme='dark'] {
+  --bg: #1e1e1f;
+  --panel: #232325;
+  --panel-2: #2c2c2f;
+  --panel-3: #38383c;
+  --border: rgba(255, 255, 255, 0.1);
+  --border-2: rgba(255, 255, 255, 0.16);
+  --border-input: rgba(255, 255, 255, 0.22);
+  --fg: #f2f2f5;
+  --fg-2: #d4d4d9;
+  --muted: #a3a3a9;
+  --dim: #8e8e93;
+  --hover: rgba(255, 255, 255, 0.06);
+  --accent: #4da3ff;
+  --accent-bg: rgba(10, 132, 255, 0.18);
+  --primary: #0071e3;
+  --primary-fg: #ffffff;
+  --primary-hover: #0a7cf0;
+  --st-running: #0a84ff;
+  --st-starting: #64b0ff;
+  --st-approval: #ff9f0a;
+  --st-approval-fg: #ffb340;
+  --st-approval-bg: rgba(255, 159, 10, 0.16);
+  --on-approval: #2b1700;
+  --st-input: #30d158;
+  --st-idle: #98989d;
+  --st-error: #ff453a;
+  --st-stopped: #98989d;
+  --add: #4cd471;
+  --del: #ff6961;
+  --approve: #0071e3;
+  --approve-fg: #ffffff;
+  --deny-fg: #ff6961;
+  --control: #2f2f33;
+  --selection: rgba(255, 255, 255, 0.1);
+  --sidebar-glass: rgba(34, 34, 40, 0.58);
+  --toolbar: rgba(30, 30, 31, 0.92);
+  color-scheme: dark;
+}
+
+/* ---------- 面 ---------- */
+html[data-design='native'] .sidebar {
+  background: var(--sidebar-glass);
+  -webkit-backdrop-filter: blur(30px) saturate(170%);
+  backdrop-filter: blur(30px) saturate(170%);
+}
+/* macOS のアプリはウィンドウの vibrancy をそのまま見せる(色を薄く重ねるだけ) */
+html[data-design='native'].mac .sidebar {
+  background: color-mix(in srgb, var(--sidebar-glass) 40%, transparent);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+html[data-design='native'] .topbar {
+  background: var(--toolbar);
+  border-bottom: 1px solid var(--border);
+}
+html[data-design='native'].mac .topbar {
+  background: color-mix(in srgb, var(--toolbar) 75%, transparent);
+}
+html[data-design='native'] .center,
+html[data-design='native'] .pane-head {
+  background: var(--bg);
+}
+/* 右側のインスペクタ */
+html[data-design='native'] .rightpanel,
+html[data-design='native'] .rp-tabs {
+  background: var(--panel);
+}
+html[data-design='native'] .rp-tabs {
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 10px;
+}
+html[data-design='native'] .rp-tab {
+  min-height: 24px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border-bottom: none;
+}
+html[data-design='native'] .rp-tab.on {
+  background: var(--control);
+  color: var(--fg);
+  box-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.18), 0 0 0 0.5px var(--border-2);
+}
+
+/* ---------- コントロール(押しボタン・セグメント) ---------- */
+html[data-design='native'] .desk .btn:not(.primary):not(.approve):not(.danger):not(.ghost):not(.deny) {
+  background: var(--control);
+  border-color: transparent;
+  box-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.18), 0 0 0 0.5px var(--border-2);
+}
+html[data-design='native'] .desk .btn.primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-fg);
+}
+html[data-design='native'] .desk .btn.primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+html[data-design='native'] .topnav {
+  background: var(--panel-2);
+  border: none;
+  border-radius: 7px;
+}
+html[data-design='native'] .topnav-btn.on {
+  background: var(--control);
+  color: var(--fg);
+  box-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.2), 0 0 0 0.5px var(--border-2);
+}
+
+/* ---------- サイドバーの行(ソースリスト) ---------- */
+html[data-design='native'] .srow {
+  border-left: none;
+  border-radius: 6px;
+  margin: 0 8px;
+  width: calc(100% - 16px);
+}
+html[data-design='native'] .srow:hover {
+  background: var(--hover);
+}
+html[data-design='native'] .srow.active {
+  background: var(--selection);
+  box-shadow: none;
+}
+/* 承認待ち: 淡いオレンジの面 + 左の細い線 */
+html[data-design='native'] .srow.st-awaiting_approval,
+html[data-design='native'] .srow.st-awaiting_approval:not(.active) {
+  background: var(--st-approval-bg);
+  box-shadow: inset 2.5px 0 0 var(--st-approval);
+  border-radius: 6px;
+}
+html[data-design='native'] .srow-name {
+  font-weight: 500;
+}
+
+/* ---------- 承認(シート風のカード)・入力欄 ---------- */
+html[data-design='native'] .appr-card,
+html[data-design='native'] .appr-banner {
+  border-radius: 12px;
+  border: 0.5px solid var(--border-2);
+  background: var(--bg);
+}
+html[data-design='native'] .desk .appr-banner:not(.overlay) {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18), 0 0 0 0.5px var(--border-2), inset 0 3px 0 var(--st-approval);
+}
+html[data-design='native'] .desk .appr-buttons .btn.approve:not(:first-child) {
+  background: var(--control);
+  border-color: transparent;
+  color: var(--fg);
+  box-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.18), 0 0 0 0.5px var(--border-2);
+}
+html[data-design='native'] .desk .appr-buttons .btn.approve:first-child {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-fg);
+}
+html[data-design='native'] .composer-dock {
+  background: var(--bg);
+}
+html[data-design='native'] .cmp-box {
+  border-radius: 10px;
+  background: var(--control);
+  border-color: var(--border-2);
+}
+/* 全体のタイル */
+html[data-design='native'] .ov-tile {
+  background: var(--bg);
+}
+html[data-design='native'] .ov-tile.st-awaiting_approval {
+  background: var(--st-approval-bg);
+  box-shadow: inset 2.5px 0 0 var(--st-approval);
+}

@@ -13,6 +13,7 @@ import type {
   ServerProtocol,
 } from '@cc-hub/shared';
 import { type SettingsTab, useHub } from '../store';
+import { DESIGNS, setDesign, useDesign } from '../design';
 import { api, errText, pick } from '../api';
 import {
   DEFAULT_PORT,
@@ -37,6 +38,7 @@ import { FirebaseMcpSection } from './Firebase';
 import { ModesSection } from './ModeSettings';
 
 const SECTIONS: { id: SettingsTab; label: string }[] = [
+  { id: 'appearance', label: '外観' },
   { id: 'notify', label: '通知' },
   { id: 'servers', label: 'アップロード先のサーバー' },
   { id: 'mcp', label: 'Claude との連携(MCP)' },
@@ -62,9 +64,42 @@ export function SettingsScreen({ mobile = false }: { mobile?: boolean }) {
         ))}
       </div>
       <div role="tabpanel">
-        {tab === 'notify' ? <NotifySection mobile={mobile} /> : tab === 'servers' ? <ServersSection /> : tab === 'hub' ? <HubSection /> : tab === 'modes' ? <ModesSection /> : <McpSection />}
+        {tab === 'appearance' ? <AppearanceSection /> : tab === 'notify' ? <NotifySection mobile={mobile} /> : tab === 'servers' ? <ServersSection /> : tab === 'hub' ? <HubSection /> : tab === 'modes' ? <ModesSection /> : <McpSection />}
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------- 外観(デザインの切り替え)
+
+function AppearanceSection() {
+  const design = useDesign();
+  return (
+    <section className="set-section">
+      <p className="muted small">画面のデザインを選びます。この画面(アプリ / ブラウザ)ごとに覚えます。ライト / ダークは OS の設定に合わせます。</p>
+      <div className="design-pick" role="radiogroup" aria-label="デザイン">
+        {DESIGNS.map((d) => (
+          <button
+            key={d.id}
+            role="radio"
+            aria-checked={design === d.id}
+            className={`design-opt ${design === d.id ? 'on' : ''}`}
+            onClick={() => setDesign(d.id)}
+          >
+            <span className={`design-thumb t-${d.id}`} aria-hidden="true">
+              <span className="dt-side" />
+              <span className="dt-main">
+                <span className="dt-line" />
+                <span className="dt-line short" />
+                <span className="dt-appr" />
+              </span>
+            </span>
+            <span className="design-name">{d.label}</span>
+            <span className="design-desc">{d.desc}</span>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 

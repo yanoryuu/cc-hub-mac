@@ -819,3 +819,112 @@ html.mac .topbar {
     gap: 8px;
   }
 }
+
+/* ---------- 設定 > 外観: デザインの選択 ---------- */
+.design-pick {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+  margin-top: 12px;
+}
+.design-opt {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-2);
+  background: var(--panel);
+  text-align: left;
+}
+.design-opt:hover {
+  border-color: var(--border-input);
+}
+.design-opt.on {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+.design-name {
+  font-weight: 650;
+}
+.design-desc {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+/* 見本(小さな窓) */
+.design-thumb {
+  display: flex;
+  gap: 5px;
+  height: 120px;
+  padding: 6px;
+  border-radius: 9px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.dt-side {
+  width: 30%;
+  border-radius: 6px;
+}
+.dt-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 6px;
+}
+.dt-line {
+  height: 6px;
+  width: 80%;
+  border-radius: 3px;
+  background: currentColor;
+  opacity: 0.25;
+}
+.dt-line.short {
+  width: 50%;
+}
+.dt-appr {
+  margin-top: auto;
+  height: 22px;
+  border-radius: 6px;
+}
+.design-thumb.t-glass {
+  background: radial-gradient(90% 90% at 0% 0%, #1f6f7a 0%, transparent 60%), radial-gradient(70% 70% at 100% 0%, #f0a272 0%, transparent 60%),
+    radial-gradient(80% 80% at 60% 100%, #6b4fa8 0%, transparent 65%), #f6d6b0;
+  color: #1d1d1f;
+}
+.t-glass .dt-side {
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+.t-glass .dt-main {
+  background: #fbfbfd;
+  border-radius: 12px;
+}
+.t-glass .dt-appr {
+  border-radius: 12px;
+  background: rgba(255, 214, 140, 0.6);
+  box-shadow: inset 0 0 0 1px rgba(245, 184, 61, 0.8);
+}
+.design-thumb.t-native {
+  padding: 0;
+  gap: 0;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: #1d1d1f;
+}
+.t-native .dt-side {
+  border-radius: 0;
+  background: rgba(220, 222, 232, 0.9);
+  border-right: 1px solid rgba(0, 0, 0, 0.08);
+}
+.t-native .dt-main {
+  border-radius: 0;
+  background: #ffffff;
+}
+.t-native .dt-appr {
+  background: #fff;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15), inset 0 2px 0 #ff9500;
+}

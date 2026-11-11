@@ -3,6 +3,11 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import './styles.css';
 import './mac.css';
+import './design-glass.css';
+import './design-native.css';
+import { initDesign } from './design';
+
+initDesign();
 
 // macOS の Electron(preload の ccHub.platform)では、タイトルバーとサイドバーの透過を有効にする
 const hub = (window as unknown as { ccHub?: { platform?: string } }).ccHub;
