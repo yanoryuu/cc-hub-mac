@@ -8,9 +8,17 @@
    - **Claude Code**: ターミナルで `curl -fsSL https://claude.ai/install.sh | bash` を実行し、一度 `claude` を起動してログインします。
    - **Git**: `xcode-select --install`(または `brew install git`)。
    - (任意)PR の機能を使うなら [GitHub CLI](https://cli.github.com/) を入れて `gh auth login` しておきます。
-2. `CC-Hub-<バージョン>-arm64.dmg` を開き、`CC Hub.app` を「アプリケーション」へドラッグします。
-   - 署名していないため、初回は Finder で `CC Hub.app` を右クリック →「開く」で起動してください
-     (または `xattr -dr com.apple.quarantine "/Applications/CC Hub.app"`)。
+2. Homebrew で入れます(Apple Silicon の Mac):
+
+   ```
+   brew install --cask yanoryuu/tap/cc-hub
+   ```
+
+   更新は `brew upgrade --cask cc-hub`、削除は `brew uninstall --cask cc-hub`(設定ごと消すなら `--zap`)。
+
+   Homebrew を使わない場合は、[Releases](https://github.com/yanoryuu/cc-hub-mac/releases) の `CC-Hub-<バージョン>-arm64.dmg` を開き、
+   `CC Hub.app` を「アプリケーション」へドラッグします。署名していないため、初回は Finder で右クリック →「開く」で起動してください
+   (または `xattr -dr com.apple.quarantine "/Applications/CC Hub.app"`)。
 3. 起動すると Claude Code との連携(mod「cc-hub」・MCP「cc-hub」・スキル `hub-commander`)を自動で設定します。
 
 データは `~/Library/Application Support/cc-hub` に置きます(設定の記録は `setup.log`)。
@@ -47,6 +55,16 @@ npm test -w @cc-hub/daemon    # テスト
 ./scripts/install-mac.sh --uninstall
 ./scripts/deploy.sh               # ビルドしてデーモンを再起動
 ```
+
+### リリース(dmg → GitHub Release → Homebrew)
+
+`packages/desktop/package.json` の version を上げてコミットしてから:
+
+```
+./scripts/release-mac.sh
+```
+
+dmg を作り、`mac-v<バージョン>` の Release に上げ、[yanoryuu/homebrew-tap](https://github.com/yanoryuu/homebrew-tap) の `Casks/cc-hub.rb` を更新します。
 
 ### dmg の作り方
 
