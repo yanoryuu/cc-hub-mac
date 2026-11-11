@@ -23,6 +23,8 @@ if [ "$SKIP_BUILD" = 0 ]; then
   (cd "$ROOT" && npm run build && npm run dist:mac -w @cc-hub/desktop)
 fi
 [ -f "$DMG" ] || { echo "dmg がありません: $DMG"; exit 1; }
+# ビルドの途中にできた .app は消す(同じアプリ ID の .app が 2 つあると、macOS が /Applications ではなくこちらを開くことがある)
+rm -rf "$ROOT/release/mac-$ARCH"
 if [ -n "$(git -C "$ROOT" status --porcelain)" ]; then
   echo "コミットしていない変更があります。コミットしてから実行してください"; exit 1
 fi
