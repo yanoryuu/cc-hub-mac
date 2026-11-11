@@ -11,6 +11,8 @@
 2. Homebrew で入れます(Apple Silicon の Mac):
 
    ```
+   brew tap yanoryuu/tap
+   brew trust yanoryuu/tap   # Homebrew 6 以降: 公式以外の tap は一度だけ信頼の登録が要る
    brew install --cask yanoryuu/tap/cc-hub
    ```
 
