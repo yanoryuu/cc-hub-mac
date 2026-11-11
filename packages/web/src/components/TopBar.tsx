@@ -20,18 +20,19 @@ function Meter({ label, w, now }: { label: string; w: RateWindow | null; now: nu
   }
   const pct = Math.max(0, Math.min(100, w.pct));
   const tone = pct >= 90 ? 'hot' : pct >= 70 ? 'warm' : '';
-  const until = w.resetsAt - now;
+  // 回復時刻が分からない(0)ときは残り時間を出さない。過ぎていたら次の値が届くまで「回復済み」
+  const until = w.resetsAt ? w.resetsAt - now : null;
   return (
     <div
       className={`meter ${tone}`}
-      title={`${label} 使用率 ${Math.round(pct)}% / リセット ${new Date(w.resetsAt).toLocaleString('ja-JP')}`}
+      title={`${label} 使用率 ${Math.round(pct)}%${w.resetsAt ? ` / リセット ${new Date(w.resetsAt).toLocaleString('ja-JP')}` : ''}`}
     >
       <span className="meter-label">{label}</span>
       <span className="meter-bar" role="meter" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}>
         <span style={{ width: `${pct}%` }} />
       </span>
       <span className="meter-num">{Math.round(pct)}%</span>
-      <span className="meter-reset">残{fmtUntil(until)}</span>
+      {until != null && <span className="meter-reset">{until > 0 ? `残${fmtUntil(until)}` : '回復済み'}</span>}
     </div>
   );
 }

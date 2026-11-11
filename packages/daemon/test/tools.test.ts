@@ -9,6 +9,7 @@ import { activeBackgroundTasks } from '../src/util';
 import { overlaps } from '../src/repo/exec';
 import { findUnityProject, parseEditorVersion, projectPathArg } from '../src/unity/launcher';
 import { shouldAutoRelease } from '../src/repo/autorelease';
+import { toEpochMs, toWindow } from '../src/usage';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -171,6 +172,18 @@ test('ランチャー: macOS の既定は osascript で Terminal.app(引用の�
 test('ランチャー: 環境変数(CLAUDE* を除き CC_HUB_SESSION を付ける)', () => {
   const env = terminalEnv('hub-1', { PATH: 'p', CLAUDECODE: '1', CLAUDE_CODE_ENTRYPOINT: 'cli', claude_x: 'y', CC_HUB_SESSION: 'old', NO_COLOR: '1' });
   assert.deepEqual(env, { PATH: 'p', CC_HUB_SESSION: 'hub-1' });
+});
+
+// ---------------------------------------------------------------- 使用率の回復時刻
+test('使用率: 回復時刻は Unix 秒・ミリ秒・ISO 文字列のどれでも読む(分からなければ 0)', () => {
+  const ms = Date.UTC(2026, 10, 11, 13, 0, 0);
+  assert.equal(toEpochMs(ms / 1000), ms);
+  assert.equal(toEpochMs(ms), ms);
+  assert.equal(toEpochMs(String(ms / 1000)), ms);
+  assert.equal(toEpochMs('2026-11-11T13:00:00.000Z'), ms);
+  for (const bad of [undefined, null, '', 'soon', 0, -5, NaN]) assert.equal(toEpochMs(bad), 0, String(bad));
+  assert.deepEqual(toWindow({ used_percentage: 24, resets_at: '2026-11-11T13:00:00.000Z' }), { pct: 24, resetsAt: ms });
+  assert.equal(toWindow({ resets_at: 1 }), null);
 });
 
 // ---------------------------------------------------------------- 添付ファイル名
